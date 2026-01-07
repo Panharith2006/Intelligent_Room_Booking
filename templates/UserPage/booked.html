@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Bookings | RUPP Room Booking</title>
@@ -10,6 +11,7 @@
     <script src="{% static 'UserPage/js/booked.js' %}" defer></script>
 </head>
 <body>
+    {% csrf_token %}
     <div class="header">
         <div class="logo">
             <img src="https://upload.wikimedia.org/wikipedia/km/e/ee/Rupp_logo.png?20090803154844" alt="RUPP Logo">
@@ -22,6 +24,7 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
@@ -52,16 +55,7 @@
                 </div>
                 <div class="stat-content">
                     <h3>Total Bookings</h3>
-                    <p>{{ bookings|length }}</p>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="stat-content">
-                    <h3>Pending</h3>
-                    <p>{{ pending_count|default:0 }}</p>
+                    <p>{{ total_bookings|default:0 }}</p>
                 </div>
             </div>
             <div class="stat-card">
@@ -73,6 +67,7 @@
                     <p>{{ confirmed_count|default:0 }}</p>
                 </div>
             </div>
+
             <div class="stat-card">
                 <div class="stat-icon">
                     <i class="fas fa-times-circle"></i>
@@ -86,28 +81,79 @@
 
         <!-- Bookings List -->
         <div class="bookings-section">
-            <div class="section-header">
-                <h2>Your Bookings</h2>
-                <div class="filter-options">
-                    <select id="statusFilter" onchange="filterBookings()">
-                        <option value="">All Status</option>
-                        <option value="pending">Pending</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="completed">Completed</option>
-                    </select>
-                </div>
-            </div>
 
+            <div class="section-header">
+                <h2>Upcoming Bookings</h2>
+            </div>
             <div class="bookings-grid" id="bookingsGrid">
                 {% for booking in bookings %}
                     <div class="booking-card" data-status="{{ booking.status }}">
                         <div class="booking-header">
                             <h3>{{ booking.room.name }}</h3>
                             <span class="booking-status status-{{ booking.status }}">
-                                {% if booking.status == 'pending' %}
-                                    <i class="fas fa-clock"></i> Pending
-                                {% elif booking.status == 'confirmed' %}
+                                {% if booking.status == 'confirmed' %}
+                                    <i class="fas fa-check-circle"></i> Confirmed
+                                {% elif booking.status == 'cancelled' %}
+                                    <i class="fas fa-ban"></i> Cancelled
+                                {% else %}
+                                    <i class="fas fa-info-circle"></i> {{ booking.status|capfirst }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="booking-details">
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span>{{ booking.room.room_number }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>{{ booking.start_time|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock"></i>
+                                <span>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clipboard"></i>
+                                <span>{{ booking.purpose }}</span>
+                            </div>
+                        </div>
+                        <div class="booking-actions">
+                            <button class="btn btn-info" onclick="console.log('View Details button clicked for booking:', {{ booking.id }}); viewBooking({{ booking.id }});">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                            {% if booking.status == 'confirmed' %}
+                                <button class="btn btn-danger" onclick="console.log('Cancel button clicked for booking:', {{ booking.id }}); cancelBooking({{ booking.id }});" 
+                                        data-booking-id="{{ booking.id }}" 
+                                        data-start-time="{{ booking.start_time|date:'c' }}">
+                                    <i class="fas fa-ban"></i> Cancel
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% empty %}
+                <div class="no-bookings">
+                    <div class="no-bookings-icon">📅</div>
+                    <h3>No Upcoming Bookings</h3>
+                    <p>You haven't made any upcoming bookings yet. Start by booking a room!</p>
+                    <button onclick="window.location.href='{% url 'accounts:booking' %}'" class="book-now-btn">
+                        Book a Room
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Booking History Section -->
+            <div class="section-header" style="margin-top: 2em;">
+                <h2>Booking History</h2>
+            </div>
+            <div class="bookings-grid" id="historyGrid">
+                {% for booking in past_bookings %}
+                    <div class="booking-card history" data-status="{{ booking.status }}">
+                        <div class="booking-header">
+                            <h3>{{ booking.room.name }}</h3>
+                            <span class="booking-status status-{{ booking.status }}">
+                                {% if booking.status == 'confirmed' %}
                                     <i class="fas fa-check-circle"></i> Confirmed
                                 {% elif booking.status == 'cancelled' %}
                                     <i class="fas fa-ban"></i> Cancelled
@@ -140,24 +186,16 @@
                             <button class="btn btn-info" onclick="viewBooking({{ booking.id }})">
                                 <i class="fas fa-eye"></i> View Details
                             </button>
-                            {% if booking.status == 'pending' or booking.status == 'confirmed' %}
-                                <button class="btn btn-danger" onclick="cancelBooking({{ booking.id }})">
-                                    <i class="fas fa-ban"></i> Cancel
-                                </button>
-                            {% endif %}
                         </div>
                     </div>
-            {% empty %}
-            <div class="no-bookings">
-                <div class="no-bookings-icon">📅</div>
-                <h3>No Bookings Found</h3>
-                <p>You haven't made any bookings yet. Start by booking a room!</p>
-                <button onclick="window.location.href='{% url 'accounts:booking' %}'" class="book-now-btn">
-                    Book a Room
-                </button>
+                {% empty %}
+                <div class="no-bookings">
+                    <div class="no-bookings-icon">🕓</div>
+                    <h3>No Booking History</h3>
+                    <p>You have no past bookings.</p>
+                </div>
+                {% endfor %}
             </div>
-        {% endfor %}
-    </div>
 
     <div class="button-row">
         <button onclick="window.history.back()">Back</button>
@@ -184,5 +222,67 @@
     </div>
 
     <script src="{% static 'UserPage/js/booked.js' %}"></script>
+    
+    <script>
+        // 🚨 FALLBACK FUNCTIONS - In case external JS doesn't load
+        console.log('Fallback script loaded');
+        
+        // Check if functions exist
+        console.log('viewBooking function exists:', typeof viewBooking !== 'undefined');
+        console.log('cancelBooking function exists:', typeof cancelBooking !== 'undefined');
+        
+        // Fallback viewBooking function
+        if (typeof viewBooking === 'undefined') {
+            console.log('Creating fallback viewBooking function');
+            window.viewBooking = function(bookingId) {
+                console.log('Fallback viewBooking called for ID:', bookingId);
+                window.location.href = `/accounts/booking-detail/${bookingId}/`;
+            };
+        }
+        
+        // Fallback cancelBooking function
+        if (typeof cancelBooking === 'undefined') {
+            console.log('Creating fallback cancelBooking function');
+            window.cancelBooking = function(bookingId) {
+                console.log('Fallback cancelBooking called for ID:', bookingId);
+                if (confirm('Are you sure you want to cancel this booking?')) {
+                    // Simple form submission approach
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = `/accounts/booking/${bookingId}/cancel/`;
+                    
+                    // Add CSRF token
+                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+                    if (csrfToken) {
+                        const csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = 'csrfmiddlewaretoken';
+                        csrfInput.value = csrfToken.value;
+                        form.appendChild(csrfInput);
+                    }
+                    
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            };
+        }
+        
+        // Test button click detection
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, setting up button listeners');
+            const buttons = document.querySelectorAll('.booking-actions button');
+            console.log('Found', buttons.length, 'action buttons');
+            
+            buttons.forEach((button, index) => {
+                console.log(`Button ${index}:`, button.textContent.trim(), 'onclick:', button.onclick);
+                
+                // Add backup click listener
+                button.addEventListener('click', function(e) {
+                    console.log('Button clicked via addEventListener:', this.textContent.trim());
+                });
+            });
+        });
+    </script>
+    {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

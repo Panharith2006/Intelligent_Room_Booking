@@ -11,7 +11,8 @@
     <title>Admin Room Management | RUPP Room Booking System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'AdminPage/css/manageRooms.css' %}">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_header.css' %}">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/responsive.css' %}">
     <style>
         .room-card {
@@ -36,6 +37,28 @@
         .room-actions .btn {
             font-size: 0.875rem;
             padding: 0.25rem 0.5rem;
+            color: #fff !important;
+            font-weight: 600;
+        }
+        .room-actions .btn-edit {
+            background-color: #ffc107 !important;
+            border-color: #ffc107 !important;
+            color: #212529 !important;
+        }
+        .room-actions .btn-delete {
+            background-color: #dc3545 !important;
+            border-color: #dc3545 !important;
+            color: #fff !important;
+        }
+        .room-actions .btn-view {
+            background-color: #0d6efd !important;
+            border-color: #0d6efd !important;
+            color: #fff !important;
+        }
+        .room-actions .btn-toggle {
+            background-color: #20c997 !important;
+            border-color: #20c997 !important;
+            color: #fff !important;
         }
         .stats-grid {
             display: grid;
@@ -53,6 +76,46 @@
         .modal-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+        }
+        
+        /* Enhanced text visibility fixes for admin room management */
+        .text-primary, 
+        .card-header h6.text-primary,
+        h6.text-primary,
+        .font-weight-bold.text-primary {
+            color: #2c3e50 !important;
+            font-weight: 600 !important;
+        }
+        
+        .text-xs.font-weight-bold.text-primary {
+            color: #2c3e50 !important;
+            font-size: 0.85rem !important;
+        }
+        
+        .card-header {
+            background-color: #f8f9fa !important;
+            border-bottom: 2px solid #e9ecef !important;
+        }
+        
+        .card {
+            border: 1px solid #dee2e6 !important;
+        }
+        
+        /* Ensure stat card text is visible */
+        .text-gray-800 {
+            color: #2c3e50 !important;
+            font-weight: 700 !important;
+        }
+        
+        /* Additional text colors for better visibility */
+        .text-success {
+            color: #198754 !important;
+            font-weight: 600 !important;
+        }
+        
+        .text-danger {
+            color: #dc3545 !important;
+            font-weight: 600 !important;
         }
     </style>
 </head>
@@ -87,7 +150,7 @@
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_rooms|default:0 }}</div>
                     </div>
                     <div class="ml-2">
-                        <i class="fas fa-door-open fa-2x text-gray-300"></i>
+                        {% comment %} <i class="fas fa-door-open fa-2x text-gray-300"></i> {% endcomment %}
                     </div>
                 </div>
             </div>
@@ -98,7 +161,7 @@
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ available_rooms|default:0 }}</div>
                     </div>
                     <div class="ml-2">
-                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        {% comment %} <i class="fas fa-check-circle fa-2x text-gray-300"></i> {% endcomment %}
                     </div>
                 </div>
             </div>
@@ -109,7 +172,7 @@
                         <div class="h5 mb-0 font-weight-bold text-gray-800">{{ unavailable_rooms|default:0 }}</div>
                     </div>
                     <div class="ml-2">
-                        <i class="fas fa-times-circle fa-2x text-gray-300"></i>
+                        {% comment %} <i class="fas fa-times-circle fa-2x text-gray-300"></i> {% endcomment %}
                     </div>
                 </div>
             </div>
@@ -167,12 +230,31 @@
                         {% for room in rooms %}
                             <div class="col-md-6 col-lg-4 mb-3">
                                 <div class="room-card card h-100 {% if room.is_available %}room-status-available{% else %}room-status-unavailable{% endif %}">
+                                    <!-- Room Image -->
+                                    {% if room.image %}
+                                        <div class="room-image" style="background-image: url('{{ room.image.url }}'); height: 200px; background-size: cover; background-position: center; position: relative;">
+                                            <div class="room-status-overlay" style="position: absolute; top: 10px; right: 10px;">
+                                                <span class="badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {% if room.is_available %}Available{% else %}Unavailable{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="room-no-image" style="height: 200px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; position: relative; border-bottom: 1px solid #dee2e6;">
+                                            <div class="text-center text-muted">
+                                                <i class="fas fa-image fa-3x mb-2"></i>
+                                                <p class="mb-0">No image uploaded</p>
+                                            </div>
+                                            <div class="room-status-overlay" style="position: absolute; top: 10px; right: 10px;">
+                                                <span class="badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {% if room.is_available %}Available{% else %}Unavailable{% endif %}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    {% endif %}
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start mb-2">
                                             <h6 class="card-title mb-0">{{ room.name }}</h6>
-                                            <span class="badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
-                                                {% if room.is_available %}Available{% else %}Unavailable{% endif %}
-                                            </span>
                                         </div>
                                         <p class="text-muted small mb-2">
                                             <i class="fas fa-hashtag"></i> {{ room.room_number }} | 
@@ -188,19 +270,19 @@
                                             </p>
                                         {% endif %}
                                         <div class="room-actions mt-2">
-                                            <button type="button" class="btn btn-outline-primary btn-sm" 
+                                            <button type="button" class="btn btn-view btn-sm" 
                                                     onclick="viewRoom({{ room.id }})">
                                                 <i class="fas fa-eye"></i> View
                                             </button>
-                                            <button type="button" class="btn btn-outline-warning btn-sm"
+                                            <button type="button" class="btn btn-edit btn-sm"
                                                     onclick="editRoom({{ room.id }})">
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
-                                            <button type="button" class="btn {% if room.is_available %}btn-outline-danger{% else %}btn-outline-success{% endif %} btn-sm"
+                                            <button type="button" class="btn btn-toggle btn-sm"
                                                     onclick="toggleAvailability({{ room.id }}, '{{ room.name }}', {{ room.is_available|yesno:'true,false' }})">
                                                 <i class="fas fa-power-off"></i> {% if room.is_available %}Disable{% else %}Enable{% endif %}
                                             </button>
-                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                            <button type="button" class="btn btn-delete btn-sm"
                                                     onclick="deleteRoom({{ room.id }}, '{{ room.name }}')">
                                                 <i class="fas fa-trash"></i> Delete
                                             </button>
@@ -229,7 +311,7 @@
                     <h5 class="modal-title">Add New Room</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="add_room">
                     <div class="modal-body">
@@ -253,6 +335,7 @@
                                         <option value="">Select Type</option>
                                         {% for value, label in room_types %}
                                             <option value="{{ value }}">{{ label }}</option>
+
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -261,6 +344,19 @@
                                 <div class="mb-3">
                                     <label for="capacity" class="form-label">Capacity *</label>
                                     <input type="number" class="form-control" id="capacity" name="capacity" min="1" max="1000" required>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="mb-3">
+                                    <label for="room_image" class="form-label">Room Image</label>
+                                    <input type="file" class="form-control" id="room_image" name="room_image" accept="image/*" onchange="previewModalImage(this, 'addImagePreview')">
+                                    <div class="form-text">Upload a clear image of the room (JPEG, PNG, GIF formats)</div>
+                                    <div class="mt-2" id="addImagePreview" style="display: none;">
+                                        <img id="addPreviewImg" src="#" alt="Room Image Preview" style="max-width: 100%; max-height: 150px; border-radius: 8px;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="removeModalImagePreview('room_image', 'addImagePreview')">
+                                            <i class="fas fa-times"></i> Remove
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -349,6 +445,35 @@
                     alert('An error occurred while deleting the room.');
                 });
             }
+        }
+
+        // Modal image preview functions
+        function previewModalImage(input, previewId) {
+            const preview = document.getElementById(previewId);
+            const previewImg = previewId === 'addImagePreview' ? 
+                document.getElementById('addPreviewImg') : 
+                document.getElementById('editPreviewImg');
+            
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                
+                reader.readAsDataURL(input.files[0]);
+            } else {
+                preview.style.display = 'none';
+            }
+        }
+
+        function removeModalImagePreview(inputId, previewId) {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(previewId);
+            
+            input.value = '';
+            preview.style.display = 'none';
         }
 
         // Add CSRF token to forms

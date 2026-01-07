@@ -1,0 +1,239 @@
+/* ===========================================
+   FullCalendar - Modern Room Schedule Styling
+   Compatible with FullCalendar v6+
+   Author: Modernized by ChatGPT
+=========================================== */
+
+.fc {
+    font-family: 'Google Sans', 'Roboto', 'Arial', sans-serif;
+    background-color: #ffffff;
+}
+
+/* ===== Header Toolbar ===== */
+.fc-header-toolbar {
+    padding: 0.75rem 1rem !important;
+    margin-bottom: 0 !important;
+    border-bottom: 1px solid #e0e0e0;
+    background-color: #f9fafb;
+}
+
+.fc-toolbar-chunk {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ===== Day Grid ===== */
+.fc-daygrid-day {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    transition: background-color 0.2s ease;
+}
+
+.fc-daygrid-day:hover {
+    background-color: #f8f9fa;
+}
+
+/* ===== Today Highlight ===== */
+.fc-day-today {
+    background-color: #e8f0fe !important;
+    position: relative;
+}
+
+.fc-day-today::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background-color: #1a73e8;
+    border-radius: 2px;
+}
+
+/* ===== Day Header ===== */
+.fc-col-header-cell {
+    background-color: #f9fafb;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #5f6368;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.fc-col-header-cell.fc-day-today {
+    color: #1a73e8 !important;
+    font-weight: 700;
+}
+
+/* ===== Time Grid View ===== */
+.fc-timegrid-axis-frame {
+    font-weight: 600;
+    color: #1a73e8;
+}
+
+.fc-timegrid-slot-label {
+    font-size: 0.9rem;
+    color: #70757a;
+    font-weight: 500;
+}
+
+.fc-timegrid-slot {
+    background-color: #ffffff;
+}
+
+.fc-timegrid-slot.fc-timegrid-slot-lane {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+/* ===== Events ===== */
+.fc-event {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border: none;
+    border-radius: 8px !important;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(60, 64, 67, 0.15);
+    padding: 2px 6px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fc-event:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(60, 64, 67, 0.25);
+}
+
+.fc-event .fc-event-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.fc-event .fc-event-time {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+/* ===== Now Indicator ===== */
+.fc-timegrid-now-indicator-line {
+    background-color: #ea4335 !important;
+    height: 2px !important;
+}
+
+.fc-timegrid-now-indicator-arrow {
+    border-top: 8px solid #ea4335 !important;
+}
+
+.fc-timegrid-now-indicator {
+    z-index: 10;
+}
+
+/* ===== Axis Time Label ===== */
+.fc-timegrid-slot-label-cushion {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.fc-timegrid-axis-frame::before {
+    content: 'GMT+07';
+    display: block;
+    color: #1a73e8;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+/* ===== Mini Calendar Sidebar ===== */
+.sidebar-mini-calendar {
+    border: 1px solid #dadce0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    background-color: #ffffff;
+}
+
+.sidebar-mini-calendar .fc-header-toolbar {
+    background-color: #f8f9fa;
+    padding: 8px 12px !important;
+    border-bottom: 1px solid #dadce0;
+}
+
+/* ===== Booking Event Color Variants ===== */
+.booking-event-blue { background-color: #1a73e8; color: white; }
+.booking-event-green { background-color: #34a853; color: white; }
+.booking-event-red { background-color: #ea4335; color: white; }
+.booking-event-yellow { background-color: #fbbc05; color: #202124; }
+.booking-event-purple { background-color: #9c27b0; color: white; }
+.booking-event-orange { background-color: #ff9800; color: white; }
+.booking-event-gray { background-color: #9aa0a6; color: white; }
+
+/* ===== Floating Create Button ===== */
+#floatingCreateBtn {
+    position: fixed;
+    right: 32px;
+    bottom: 32px;
+    z-index: 100;
+    background-color: #1a73e8;
+    color: #ffffff;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(60, 64, 67, 0.18);
+    font-size: 2em;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+#floatingCreateBtn:hover {
+    background-color: #1765c1;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(60, 64, 67, 0.25);
+}
+
+/* ===== Modal Styling ===== */
+#bookingModal .modal-content {
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(60, 64, 67, 0.18);
+    padding: 24px;
+    border: none;
+}
+
+/* ===== Google Calendar Button ===== */
+.google-btn {
+    border: 1px solid #dadce0;
+    border-radius: 6px;
+    padding: 8px 16px;
+    background-color: #ffffff;
+    color: #3c4043;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.google-btn:hover {
+    box-shadow: 0 1px 3px rgba(60, 64, 67, 0.3),
+                0 1px 4px 1px rgba(60, 64, 67, 0.15);
+}
+
+.google-btn.active {
+    background-color: #1a73e8;
+    color: white;
+    border-color: #1a73e8;
+}
+
+/* ===== Responsive Adjustments ===== */
+@media (max-width: 992px) {
+    .fc-header-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    #floatingCreateBtn {
+        right: 16px;
+        bottom: 16px;
+    }
+}

@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About Us | RUPP Room Booking System</title>
@@ -22,6 +23,7 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item active">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
@@ -76,6 +78,8 @@
         <p>Russian Federation Boulevard, Toul Kork, Phnom Penh, Cambodia. Tel: 855-972 274 936</p>
         <p>Designed by: DSE TEAM</p>
     </footer>
+
+    {% include 'includes/chatbot_widget.html' %}
 
 </body>
 </html>

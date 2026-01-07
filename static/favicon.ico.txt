@@ -1,6 +1,0 @@
-# Favicon Placeholder
-# This is a placeholder file. 
-# Replace with an actual favicon.ico file for your application.
-# You can create one at https://favicon.io or similar online tools.
-
-# For now, the favicon is handled via data URI in the HTML templates.

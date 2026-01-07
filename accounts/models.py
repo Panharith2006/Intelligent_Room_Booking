@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
-from django.core.validators import RegexValidator
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -15,17 +15,15 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, student_id, phone_number, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_admin', True)
-
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
+        extra_fields.setdefault('is_staff', True)  
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
         return self.create_user(email, student_id, phone_number, password, **extra_fields)
+
 
 class User(AbstractUser):
     username = None
@@ -40,21 +38,14 @@ class User(AbstractUser):
         'Student ID',
         max_length=20,
         unique=True,
-        validators=[RegexValidator(
-            regex=r'^[A-Z0-9]{6,20}$',  # Made more flexible for your frontend
-            message='Student ID must be 6-20 characters (letters and numbers)'
-        )],
-        help_text='6-20 character student identification',
-        blank=True  # Allow blank for admin accounts
+        blank=True,   # Allow blank for admin accounts and Google users
+        null=True,    # Allow null temporarily for migration
+        help_text='6-20 character student identification.'
     )
 
     phone_number = models.CharField(
         'Phone Number',
-        max_length=20,  # Increased for international formats
-        validators=[RegexValidator(
-            regex=r'^\+?[\d\s\-\(\)]{9,20}$',  # More flexible format
-            message='Phone number must be valid format'
-        )],
+        max_length=20, 
         help_text='Format: +999999999 or 999-999-9999',
         blank=True
     )
@@ -62,32 +53,29 @@ class User(AbstractUser):
     is_admin = models.BooleanField(
         'Admin status',
         default=False,
-        help_text='Designates administrative privileges (different from staff status)'
+        help_text='Designates administrative privileges (different from staff status).'
     )
 
-    FACULTY_CHOICES = [
-        ('science', 'Faculty of Science'),
-        ('engineering', 'Faculty of Engineering'),
-        ('social', 'Faculty of Social Sciences'),
-        ('business', 'Faculty of Business'),
-        ('education', 'Faculty of Education'),
-        ('arts', 'Faculty of Arts'),
-        ('law', 'Faculty of Law'),
-        ('medicine', 'Faculty of Medicine'),
-        ('agriculture', 'Faculty of Agriculture'),
-    ]
-    
     faculty = models.CharField(
         'Faculty',
-        max_length=50,
-        choices=FACULTY_CHOICES,
-        blank=True
+        max_length=100,  # Increased length for custom faculty names
+        blank=True,
+        help_text='Faculty or school name.'
     )
-    
+
     department = models.CharField(
         'Department',
         max_length=100,  # Increased for longer department names
         blank=True
+    )
+
+    profile_picture = models.ImageField(
+        'Profile Picture',
+        upload_to='profile_pictures/',
+        blank=True,
+        null=True,
+        default=None,
+        help_text='Upload a profile image.'
     )
 
     is_staff = models.BooleanField(
@@ -100,7 +88,7 @@ class User(AbstractUser):
     updated_at = models.DateTimeField('Updated At', auto_now=True)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']  # Made more flexible
+    REQUIRED_FIELDS = ['first_name', 'last_name']
 
     objects = UserManager()
 
@@ -118,21 +106,71 @@ class User(AbstractUser):
 
     def get_short_name(self):
         return self.first_name
-    
+
     def get_student_display_id(self):
-        """Return student ID or generate one if missing"""
+        """Return student ID"""
         if self.student_id:
-            return self.student_id
-        return f"USR{self.id:06d}"
+            return f"{self.student_id}"
+        return ""
     
     def get_phone_display(self):
         """Return phone number or default"""
         return self.phone_number or "000-000-0000"
-    
+
+    def is_google_user(self):
+        """Check if this user signed up via Google OAuth"""
+        return hasattr(self, 'socialaccount_set') and self.socialaccount_set.filter(provider='google').exists()
+
+    def is_profile_complete(self):
+        """Check if user profile is reasonably complete"""
+        required_fields = [self.first_name, self.last_name, self.email]
+        optional_fields = [self.phone_number, self.faculty, self.department]
+
+        # All required fields must be filled
+        if not all(required_fields):
+            return False
+
+        # For Google users, student_id starting with GOOGLE is acceptable
+        if self.is_google_user() and self.student_id and self.student_id.startswith('GOOGLE'):
+            return sum(1 for field in optional_fields if field) >= 1
+        else:
+            # For regular users, student_id should not be auto-generated
+            if not self.student_id or self.student_id.startswith(('USR', 'GOOGLE')):
+                return False
+            return sum(1 for field in optional_fields if field) >= 1
+
+    def get_profile_completion_percentage(self):
+        """Get profile completion percentage"""
+        total_fields = 7  # first_name, last_name, email, student_id, phone, faculty, department
+        filled_fields = 0
+
+        # Required fields
+        if self.first_name:
+            filled_fields += 1
+        if self.last_name:
+            filled_fields += 1
+        if self.email:
+            filled_fields += 1
+
+        # Optional but important fields
+        if self.student_id and not self.student_id.startswith(('USR', 'GOOGLE')):
+            filled_fields += 1
+        elif self.student_id and self.student_id.startswith('GOOGLE') and self.is_google_user():
+            filled_fields += 0.5
+
+        if self.phone_number:
+            filled_fields += 1
+        if self.faculty:
+            filled_fields += 1
+        if self.department:
+            filled_fields += 1
+
+        return int((filled_fields / total_fields) * 100)
+
     def is_regular_user(self):
         """Check if user is a regular user (not admin)"""
         return not self.is_admin and not self.is_staff
-    
+
     def is_admin_user(self):
         """Check if user is admin"""
-        return self.is_admin or self.is_staff or self.is_superuser
+        return self.is_admin or self.is_superuser

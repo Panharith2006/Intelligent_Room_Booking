@@ -8,93 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
-    <link rel="stylesheet" href="{% static 'AdminPage/css/manageRooms.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/allBookings.css' %}">
-    <link rel="stylesheet" href="{% static 'AdminPage/css/responsive.css' %}">
-    <style>
-        /* Additional custom styles for bookings */
-        .main-content {
-            margin-top: 20px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: none;
-            transition: all 0.3s ease;
-            padding: 1.5rem;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            color: #6c757d;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .badge {
-            font-size: 0.875rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 50px;
-            font-weight: 500;
-        }
-        
-        .table-responsive {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        
-        .table th {
-            background: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            color: #495057;
-            padding: 1rem;
-        }
-        
-        .table td {
-            padding: 1rem;
-            vertical-align: middle;
-        }
-        
-        .filters-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: none;
-            margin-bottom: 2rem;
-        }
-        
-        .btn-outline-primary {
-            border-color: #667eea;
-            color: #667eea;
-        }
-        
-        .btn-outline-primary:hover {
-            background-color: #667eea;
-            border-color: #667eea;
-        }
-    </style>
 </head>
 <body>
     <!-- Header -->
@@ -115,9 +29,56 @@
     <!-- Main Content -->
     <div class="main-content">
         <div class="container">
-            <div class="page-header">
-                <h2><i class="fas fa-calendar-alt me-2"></i>All Bookings</h2>
-                <p class="text-muted">Manage and monitor all room bookings</p>
+            <div class="page-header mb-4">
+                <h2 class="mb-1 text-center"><i class="fas fa-calendar-alt me-2"></i>All Bookings</h2>
+                <p class="text-muted mb-3 text-center">Manage and monitor all room bookings</p>
+                <div class="card filters-card mx-auto" style="max-width: 900px;">
+                    <form method="get" class="row g-3 align-items-end p-3">
+                        <div class="col-md-3 col-12">
+                            <label for="category" class="form-label">Category</label>
+                            <select name="category" id="category" class="form-select">
+                                <option value="all" {% if request.GET.category == 'all' or not request.GET.category %}selected{% endif %}>All</option>
+                                <option value="today" {% if request.GET.category == 'today' %}selected{% endif %}>Today</option>
+                                <option value="month" {% if request.GET.category == 'month' %}selected{% endif %}>This Month</option>
+                                <option value="year" {% if request.GET.category == 'year' %}selected{% endif %}>This Year</option>
+                                <option value="custom" {% if request.GET.category == 'custom' %}selected{% endif %}>Custom Date</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-12" id="custom-date-group" {% if request.GET.category != 'custom' %}style="display:none;"{% endif %}>
+                            <label for="date" class="form-label">Date</label>
+                            <input type="date" name="date" id="date" class="form-control" value="{{ request.GET.date|default:'' }}">
+                        </div>
+                        <div class="col-md-3 col-12">
+                            <label for="status" class="form-label">Status</label>
+                            <select name="status" id="status" class="form-select">
+                                <option value="">All</option>
+                                <option value="confirmed" {% if request.GET.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-12 d-flex gap-2 align-items-end">
+                            <button type="submit" class="btn btn-primary w-100"><i class="fas fa-filter me-1"></i>Filter</button>
+                            <a href="{% url 'accounts:all_bookings' %}" class="btn btn-outline-secondary w-100"><i class="fas fa-times me-1"></i>Clear</a>
+                        </div>
+                        {# Export button removed from filter area #}
+                    </form>
+                </div>
+                <script>
+                // Show/hide custom date input based on category
+                document.addEventListener('DOMContentLoaded', function() {
+                    var category = document.getElementById('category');
+                    var customDateGroup = document.getElementById('custom-date-group');
+                    if (category) {
+                        category.addEventListener('change', function() {
+                            if (this.value === 'custom') {
+                                customDateGroup.style.display = '';
+                            } else {
+                                customDateGroup.style.display = 'none';
+                            }
+                        });
+                    }
+                });
+                </script>
             </div>
 
             <!-- Booking Statistics -->
@@ -126,10 +87,7 @@
                     <div class="stat-number text-primary">{{ total_bookings|default:0 }}</div>
                     <div class="stat-label">Total Bookings</div>
                 </div>
-                <div class="stat-card">
-                    <div class="stat-number text-warning">{{ pending_bookings|default:0 }}</div>
-                    <div class="stat-label">Pending</div>
-                </div>
+                
                 <div class="stat-card">
                     <div class="stat-number text-success">{{ confirmed_bookings|default:0 }}</div>
                     <div class="stat-label">Confirmed</div>
@@ -144,9 +102,17 @@
             <!-- Bookings Table -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Bookings List
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list me-2"></i>Bookings List
+                        </h5>
+                        <a href="?{% if request.GET.category %}category={{ request.GET.category|urlencode }}&amp;{% endif %}{% if request.GET.date %}date={{ request.GET.date|urlencode }}&amp;{% endif %}{% if request.GET.status %}status={{ request.GET.status|urlencode }}&amp;{% endif %}export=excel" class="btn btn-success btn-sm ms-2">
+                            <i class="fas fa-file-excel me-1"></i>Export Bookings
+                        </a>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end mt-2">
+                    {# Export button moved to table header #}
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -183,31 +149,23 @@
                                         <td>{{ booking.start_time|date:"M d, Y" }}</td>
                                         <td>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</td>
                                         <td>
-                                            {% if booking.status == 'pending' %}
-                                                <span class="badge bg-warning">Pending</span>
-                                            {% elif booking.status == 'confirmed' %}
+                                            {% if booking.status == 'confirmed' %}
                                                 <span class="badge bg-success">Confirmed</span>
                                             {% elif booking.status == 'cancelled' %}
                                                 <span class="badge bg-danger">Cancelled</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ booking.get_status_display }}</span>
                                             {% endif %}
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                {% if booking.status == 'pending' %}
+                                                {% if booking.status == 'confirmed' %}
                                                     <form method="post" action="{% url 'accounts:all_bookings' %}" class="d-inline">
                                                         {% csrf_token %}
-                                                        <input type="hidden" name="action" value="approve">
+                                                        <input type="hidden" name="action" value="cancel">
                                                         <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                                        <button type="submit" class="btn btn-success btn-sm" title="Approve" onclick="return confirm('Are you sure you want to approve this booking?')">
-                                                            <i class="fas fa-check"></i>
-                                                        </button>
-                                                    </form>
-                                                    <form method="post" action="{% url 'accounts:all_bookings' %}" class="d-inline">
-                                                        {% csrf_token %}
-                                                        <input type="hidden" name="action" value="reject">
-                                                        <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                                        <button type="submit" class="btn btn-danger btn-sm" title="Reject" onclick="return confirm('Are you sure you want to reject this booking?')">
-                                                            <i class="fas fa-times"></i>
+                                                        <button type="submit" class="btn btn-warning btn-sm" title="Cancel Booking" onclick="return confirm('Are you sure you want to cancel this booking?')">
+                                                            <i class="fas fa-ban"></i>
                                                         </button>
                                                     </form>
                                                 {% endif %}
@@ -266,56 +224,8 @@
         </div>
     </div>
 
-    <!-- Booking Action Modals -->
-    <div class="modal fade" id="approveModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Approve Booking</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="approve">
-                    <input type="hidden" name="booking_id" id="approve_booking_id">
-                    <div class="modal-body">
-                        <p>Are you sure you want to approve this booking?</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-success">Approve</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    
 
-    <div class="modal fade" id="rejectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Reject Booking</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="reject">
-                    <input type="hidden" name="booking_id" id="reject_booking_id">
-                    <div class="modal-body">
-                        <p>Are you sure you want to reject this booking?</p>
-                        <div class="mb-3">
-                            <label for="reject_reason" class="form-label">Reason (optional)</label>
-                            <textarea class="form-control" id="reject_reason" name="reason" rows="3"></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-danger">Reject</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
 
     <div class="modal fade" id="cancelModal" tabindex="-1">
         <div class="modal-dialog">
@@ -348,11 +258,7 @@
             modal.show();
         }
 
-        function rejectBooking(id) {
-            document.getElementById('reject_booking_id').value = id;
-            var modal = new bootstrap.Modal(document.getElementById('rejectModal'));
-            modal.show();
-        }
+
 
         function cancelBooking(id) {
             document.getElementById('cancel_booking_id').value = id;

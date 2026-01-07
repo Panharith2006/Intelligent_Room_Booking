@@ -11,7 +11,7 @@ from .models import Room, Booking, BookingRule, Announcement
 from .forms import RoomForm, BookingRuleForm, AnnouncementForm, AdminBookingForm
 from .decorators import admin_required
 from accounts.models import User
-import json
+
 
 @login_required
 @admin_required
@@ -25,8 +25,6 @@ def admin_dashboard(request):
         end_time__gte=timezone.now()
     ).count()
     
-    # Pending bookings that need approval
-    pending_bookings = Booking.objects.filter(status='pending').count()
     
     # Today's bookings
     today = timezone.now().date()
@@ -47,8 +45,6 @@ def admin_dashboard(request):
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
     admin_count = User.objects.filter(is_admin=True).count()
-    staff_count = User.objects.filter(is_staff=True, is_admin=False).count()
-    regular_count = total_users - admin_count - staff_count
     
     # Get most booked rooms
     most_booked_rooms = Room.objects.annotate(
@@ -65,22 +61,17 @@ def admin_dashboard(request):
         'total_rooms': total_rooms,
         'total_bookings': total_bookings,
         'active_bookings': active_bookings,
-        'pending_bookings': pending_bookings,
         'today_bookings': today_bookings,
-        'recent_bookings': recent_bookings,
         'room_stats': room_stats,
         'total_users': total_users,
         'active_users': active_users,
         'admin_count': admin_count,
-        'staff_count': staff_count,
-        'regular_count': regular_count,
-        'most_booked_rooms': most_booked_rooms,
         'upcoming_bookings': upcoming_bookings,
     }
     
     return render(request, 'AdminPage/adminHomePage.html', context)
 
-# Step 19: Admin Room Management
+# Admin Room Management
 @login_required
 @admin_required
 def admin_room_list(request):
@@ -142,8 +133,8 @@ def admin_room_create(request):
     
     return render(request, 'AdminPage/room_form.html', {
         'form': form,
-        'title': 'Create New Room',
-        'action': 'Create'
+        'title': 'Add New Room',
+        'action': 'add'
     })
 
 @login_required
@@ -166,8 +157,8 @@ def admin_room_edit(request, room_id):
     return render(request, 'AdminPage/room_form.html', {
         'form': form,
         'room': room,
-        'title': f'Edit Room - {room.name}',
-        'action': 'Update'
+        'title': f'Update Room - {room.name}',
+        'action': 'edit'
     })
 
 @login_required
@@ -185,7 +176,7 @@ def admin_room_delete(request, room_id):
     # Check if room has active bookings
     active_bookings = Booking.objects.filter(
         room=room,
-        status__in=['confirmed', 'pending'],
+        status__in=['confirmed'],
         end_time__gte=timezone.now()
     ).count()
     
@@ -244,7 +235,7 @@ def admin_room_bulk_action(request):
     
     return redirect('booking:admin_room_list')
 
-# Step 20: Admin Booking Oversight
+# Admin Booking Oversight
 @login_required
 @admin_required
 def admin_booking_list(request):
@@ -284,6 +275,7 @@ def admin_booking_list(request):
             Q(room__name__icontains=search_query) |
             Q(room__room_number__icontains=search_query) |
             Q(purpose__icontains=search_query)
+            
         )
     
     # Pagination
@@ -388,7 +380,7 @@ def admin_booking_update_status(request, booking_id):
     
     return redirect('admin_booking_list')
 
-# Step 21: System Configuration
+# System Configuration
 @login_required
 @admin_required
 def admin_booking_rules(request):
@@ -432,7 +424,9 @@ def admin_announcement_create(request):
     if request.method == 'POST':
         form = AnnouncementForm(request.POST)
         if form.is_valid():
-            announcement = form.save()
+            announcement = form.save(commit=False)
+            announcement.created_by = request.user
+            announcement.save()
             messages.success(request, f'Announcement "{announcement.title}" created successfully!')
             return redirect('booking:admin_announcements')
         else:
@@ -688,3 +682,113 @@ def admin_booking_stats(request):
             'end': end_date.isoformat(),
         }
     })
+
+
+@login_required
+@admin_required
+def admin_schedule_view(request):
+    """Admin schedule calendar view showing all bookings from all users"""
+    return render(request, 'AdminPage/admin_schedule.html')
+
+
+@login_required
+@admin_required
+def admin_schedule_events(request):
+    """API endpoint to fetch all booking events for the admin calendar"""
+    start = request.GET.get('start')
+    end = request.GET.get('end')
+    
+    # Base query for all bookings
+    bookings = Booking.objects.select_related('user', 'room').all()
+    
+    # Filter by date range if provided
+    if start and end:
+        try:
+            start_date = datetime.fromisoformat(start.replace('Z', '+00:00'))
+            end_date = datetime.fromisoformat(end.replace('Z', '+00:00'))
+            bookings = bookings.filter(
+                start_time__lt=end_date,
+                end_time__gt=start_date
+            )
+        except ValueError:
+            pass
+    
+    # Build event list for FullCalendar
+    events = []
+    for booking in bookings:
+        # Generate a unique color for each user based on their ID
+        user_colors = [
+            '#3788d8',  # Blue
+            '#28a745',  # Green
+            '#ffc107',  # Yellow/Amber
+            '#dc3545',  # Red
+            '#6f42c1',  # Purple
+            '#fd7e14',  # Orange
+            '#20c997',  # Teal
+            '#e83e8c',  # Pink
+        ]
+        color = user_colors[booking.user.id % len(user_colors)]
+        
+        # Adjust color for cancelled bookings
+        if booking.status == 'cancelled':
+            color = '#6c757d'  # Gray
+        
+        events.append({
+            'id': booking.id,
+            'title': f"{booking.user.get_full_name() or booking.user.username} - {booking.room.name}",
+            'start': booking.start_time.isoformat(),
+            'end': booking.end_time.isoformat(),
+            'backgroundColor': color,
+            'borderColor': color,
+            'extendedProps': {
+                'userName': booking.user.get_full_name() or booking.user.username,
+                'userEmail': booking.user.email,
+                'userAvatar': booking.user.profile_picture.url if getattr(booking.user, 'profile_picture', None) else None,
+                'roomName': booking.room.name,
+                'roomNumber': booking.room.room_number,
+                'purpose': booking.purpose,
+                'attendees': booking.attendees,
+                'status': booking.status,
+                'notes': booking.additional_notes,
+                'bookingId': booking.id,
+            }
+        })
+    
+    return JsonResponse(events, safe=False)
+
+
+@login_required
+@admin_required
+def admin_booking_quick_edit(request, booking_id):
+    """Quick edit booking from calendar view"""
+    booking = get_object_or_404(Booking, id=booking_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'delete':
+            booking.delete()
+            messages.success(request, 'Booking deleted successfully.')
+            return JsonResponse({'success': True, 'message': 'Booking deleted successfully.'})
+        
+        elif action == 'update_status':
+            new_status = request.POST.get('status')
+            if new_status in ['confirmed', 'cancelled']:
+                booking.status = new_status
+                booking.save()
+                messages.success(request, f'Booking status updated to {new_status}.')
+                return JsonResponse({'success': True, 'message': f'Booking status updated to {new_status}.'})
+        
+        elif action == 'update':
+            try:
+                booking.start_time = datetime.fromisoformat(request.POST.get('start_time'))
+                booking.end_time = datetime.fromisoformat(request.POST.get('end_time'))
+                booking.purpose = request.POST.get('purpose', booking.purpose)
+                booking.additional_notes = request.POST.get('notes', booking.additional_notes)
+                booking.save()
+                messages.success(request, 'Booking updated successfully.')
+                return JsonResponse({'success': True, 'message': 'Booking updated successfully.'})
+            except Exception as e:
+                return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)

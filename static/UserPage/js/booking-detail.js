@@ -6,8 +6,44 @@ function editBooking(bookingId) {
 }
 
 function cancelBooking(bookingId) {
+    console.log('Cancel booking clicked for ID:', bookingId);
+    
+    // Get the cancel button to check the booking start time
+    const cancelButton = document.querySelector(`button[data-booking-id="${bookingId}"]`);
+    
+    if (cancelButton) {
+        const startTimeStr = cancelButton.getAttribute('data-start-time');
+        console.log('Start time string:', startTimeStr);
+        
+        const startTime = new Date(startTimeStr);
+        const currentTime = new Date();
+        const hoursUntilBooking = (startTime - currentTime) / (1000 * 60 * 60);
+        
+        console.log('Start time:', startTime);
+        console.log('Current time:', currentTime);
+        console.log('Hours until booking:', hoursUntilBooking);
+        
+        // Check 24-hour rule
+        if (hoursUntilBooking < 24) {
+            if (hoursUntilBooking <= 0) {
+                alert('Cannot cancel booking that has already started.');
+            } else {
+                alert(`Cannot cancel booking. Must cancel at least 24 hours in advance. Only ${hoursUntilBooking.toFixed(1)} hours remaining.`);
+            }
+            return;
+        }
+    } else {
+        console.log('Cancel button not found, proceeding without time check');
+    }
+    
     bookingToCancel = bookingId;
-    document.getElementById('cancelModal').style.display = 'block';
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.style.display = 'block';
+        console.log('Cancel modal displayed');
+    } else {
+        console.error('Cancel modal not found!');
+    }
 }
 
 function closeCancelModal() {
@@ -16,19 +52,26 @@ function closeCancelModal() {
 }
 
 function confirmCancel() {
+    console.log('Confirming cancel for booking:', bookingToCancel);
+    
     if (bookingToCancel) {
         // Send AJAX request to cancel booking
-        fetch(`/accounts/cancel-booking/${bookingToCancel}/`, {
+        fetch(`/accounts/booking/${bookingToCancel}/cancel/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCookie('csrftoken'),
                 'Content-Type': 'application/json',
             },
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
-                alert('Booking cancelled successfully!');
+                // Show success message
+                alert(data.message);
                 // Refresh the page to show updated status
                 location.reload();
             } else {
@@ -37,7 +80,7 @@ function confirmCancel() {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error cancelling booking');
+            alert('Error cancelling booking. Please try again.');
         });
     }
     closeCancelModal();

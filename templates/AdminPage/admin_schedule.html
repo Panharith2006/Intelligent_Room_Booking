@@ -1,0 +1,330 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Schedule - Room Booking System</title>
+    <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+    
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_schdule.css' %}">
+</head>
+<body>
+    {% include 'AdminPage/includes/admin_header.html' %}
+
+    <div class="schedule-container">
+
+        <div class="calendar-wrapper">
+            <div id="calendar"></div>
+  
+    
+        </div>
+    </div>
+
+    <!-- Booking Details Modal -->
+    <div id="bookingModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Booking Details</h2>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="booking-details" id="bookingDetails">
+                <!-- Populated by showBookingDetails(event) -->
+            </div>
+            <div class="modal-actions" style="margin-top:1rem;">
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    
+    <script>
+        let calendar;
+        let currentBooking = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const calendarEl = document.getElementById('calendar');
+            
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+                },
+                views: {
+                    dayGridMonth: {
+                        titleFormat: { year: 'numeric', month: 'long' }
+                    },
+                    timeGridWeek: {
+                        titleFormat: { year: 'numeric', month: 'short', day: 'numeric' },
+                        slotDuration: '00:15:00',
+                        slotLabelFormat: { hour: '2-digit', minute: '2-digit' }
+                    },
+                    timeGridDay: {
+                        titleFormat: { year: 'numeric', month: 'long', day: 'numeric' },
+                        slotDuration: '00:15:00',
+                        slotLabelFormat: { hour: '2-digit', minute: '2-digit' }
+                    }
+                },
+                // show times precisely and event end
+                eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+                displayEventTime: true,
+                displayEventEnd: true,
+                // reasonable visible hours
+                slotMinTime: '06:00:00',
+                slotMaxTime: '22:00:00',
+                height: 'auto',
+                events: '{% url "booking:admin_schedule_events" %}',
+                eventClick: function(info) {
+                    try {
+                        const bookingId = (info.event.extendedProps && info.event.extendedProps.bookingId) || info.event.id;
+                        // navigate to admin booking detail page
+                        window.location.href = `/accounts/admin/booking-detail/${bookingId}/`;
+                    } catch (err) {
+                        console.error('eventClick navigation error', err);
+                        // fallback to show modal for now
+                        showBookingDetails(info.event);
+                    }
+                },
+                eventContent: function(arg) {
+                    // Render event as avatar + user name (works across views)
+                    const props = arg.event.extendedProps || {};
+                    const userName = props.userName || arg.event.title || '';
+                    const avatar = props.userAvatar || '';
+
+                    const container = document.createElement('div');
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.gap = '6px';
+
+                    if (avatar) {
+                        const img = document.createElement('img');
+                        img.src = avatar;
+                        img.style.width = '20px';
+                        img.style.height = '20px';
+                        img.style.borderRadius = '50%';
+                        img.style.objectFit = 'cover';
+                        img.style.flex = '0 0 20px';
+                        img.alt = userName;
+                        container.appendChild(img);
+                    }
+
+                    const title = document.createElement('div');
+                    title.style.fontSize = '0.85em';
+                    title.style.lineHeight = '1';
+                    title.innerText = userName;
+                    container.appendChild(title);
+
+                    // Make the avatar/name clickable to open the details popup
+                    container.style.cursor = 'pointer';
+                    container.dataset.bookingId = arg.event.id;
+                    container.onclick = function(e) {
+                        try {
+                            const id = this.dataset.bookingId || arg.event.id;
+                            window.location.href = `/accounts/admin/booking-detail/${id}/`;
+                        } catch (err) {
+                            console.error('container click navigation error', err);
+                        }
+                    };
+
+                    // For month view, also show time range if available
+                    if (arg.view.type === 'dayGridMonth' && arg.event.start && arg.event.end) {
+                        try {
+                            const fmt = (d) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const timeText = `${fmt(arg.event.start)}-${fmt(arg.event.end)}`;
+                            const timeDiv = document.createElement('div');
+                            timeDiv.style.fontSize = '0.75em';
+                            timeDiv.style.color = '#333';
+                            timeDiv.style.marginLeft = '6px';
+                            timeDiv.innerText = timeText;
+                            container.appendChild(timeDiv);
+                        } catch (e) {}
+                    }
+
+                    return { domNodes: [container] };
+                },
+                loading: function(isLoading) {
+                    if (isLoading) {
+                        console.log('Loading events...');
+                    } else {
+                        console.log('Events loaded');
+                    }
+                }
+            });
+            
+            calendar.render();
+        });
+
+        function showBookingDetails(event) {
+            if (!event) return;
+            currentBooking = event;
+            const props = event.extendedProps || {};
+            
+            const startDate = new Date(event.start);
+            const endDate = new Date(event.end);
+            
+            const formatDateTime = (date) => {
+                return date.toLocaleString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            };
+
+            const statusClass = props.status === 'confirmed' ? 'status-confirmed' : 'status-cancelled';
+            const statusText = props.status.charAt(0).toUpperCase() + props.status.slice(1);
+
+            document.getElementById('bookingDetails').innerHTML = `
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-user"></i> User:</div>
+                    <div class="detail-value">${props.userName}<br><small>${props.userEmail}</small></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-door-open"></i> Room:</div>
+                    <div class="detail-value">${props.roomName} (${props.roomNumber})</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-calendar-day"></i> Start Time:</div>
+                    <div class="detail-value">${formatDateTime(startDate)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-calendar-day"></i> End Time:</div>
+                    <div class="detail-value">${formatDateTime(endDate)}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-clipboard"></i> Purpose:</div>
+                    <div class="detail-value">${props.purpose}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-users"></i> Attendees:</div>
+                    <div class="detail-value">${props.attendees} people</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-info-circle"></i> Status:</div>
+                    <div class="detail-value"><span class="status-badge ${statusClass}">${statusText}</span></div>
+                </div>
+                ${props.notes ? `
+                <div class="detail-row">
+                    <div class="detail-label"><i class="fas fa-sticky-note"></i> Notes:</div>
+                    <div class="detail-value">${props.notes}</div>
+                </div>
+                ` : ''}
+            `;
+
+            // Update status toggle button
+            const statusBtn = document.getElementById('statusToggleBtn');
+            if (props.status === 'confirmed') {
+                statusBtn.innerHTML = '<i class="fas fa-ban"></i> Cancel Booking';
+                statusBtn.className = 'btn btn-secondary';
+            } else {
+                statusBtn.innerHTML = '<i class="fas fa-check-circle"></i> Confirm Booking';
+                statusBtn.className = 'btn btn-success';
+            }
+
+            document.getElementById('bookingModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('bookingModal').classList.remove('show');
+            currentBooking = null;
+        }
+
+        function editBooking() {
+            if (currentBooking) {
+                const bookingId = currentBooking.extendedProps.bookingId;
+                window.location.href = `{% url 'booking:admin_booking_edit' 0 %}`.replace('0', bookingId);
+            }
+        }
+
+        function toggleStatus() {
+            if (!currentBooking) return;
+
+            const bookingId = currentBooking.extendedProps.bookingId;
+            const currentStatus = currentBooking.extendedProps.status;
+            const newStatus = currentStatus === 'confirmed' ? 'cancelled' : 'confirmed';
+
+            if (confirm(`Are you sure you want to ${newStatus === 'cancelled' ? 'cancel' : 'confirm'} this booking?`)) {
+                const formData = new FormData();
+                formData.append('action', 'update_status');
+                formData.append('status', newStatus);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                fetch(`{% url 'booking:admin_booking_quick_edit' 0 %}`.replace('0', bookingId), {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        calendar.refetchEvents();
+                        closeModal();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to update booking status');
+                });
+            }
+        }
+
+        function deleteBooking() {
+            if (!currentBooking) return;
+
+            const bookingId = currentBooking.extendedProps.bookingId;
+
+            if (confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                fetch(`{% url 'booking:admin_booking_quick_edit' 0 %}`.replace('0', bookingId), {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        calendar.refetchEvents();
+                        closeModal();
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete booking');
+                });
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('bookingModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+
+        // Close modal with Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

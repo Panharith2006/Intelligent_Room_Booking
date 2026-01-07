@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Booking Calendar | RUPP</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/locales-all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link rel="stylesheet" href="{% static 'UserPage/css/room_schedule.css' %}"> 
+    <!-- Responsive CSS for mobile optimization -->
+    <link rel="stylesheet" href="{% static 'UserPage/css/responsive.css' %}">
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="flex flex-row min-h-screen">
+        <aside class="w-72 bg-white border-r px-4 py-6 flex flex-col gap-6">
+            <div class="flex flex-col gap-2 mb-4">
+                <div class="flex items-center gap-2">
+                    <img src="https://ssl.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_24_2x.png" alt="Calendar" class="w-8 h-8">
+                    <span class="text-xl font-bold text-indigo-700">Booking Calendar</span>
+                </div>
+                <div class="mt-2">
+                    <div id="miniSidebarCalendar" class="sidebar-mini-calendar"></div>
+                </div>
+            </div>
+            <div class="mb-6">
+                <!-- Removed duplicate mini calendar and date input, only show full calendar above -->
+            </div>
+            <div class="mt-8">
+                
+                <div id="sidebarBookingHistory" class="max-h-64 overflow-y-auto space-y-2 text-sm"></div>
+            </div>
+        </aside>
+        <main class="flex-1 flex flex-col">
+            <div class="flex items-center justify-between px-8 py-5 border-b bg-white shadow-sm">
+                
+                <!-- Removed Create button and date picker above calendar/table view -->
+            </div>
+            <div class="flex-1 relative">
+                <div class="flex flex-col">
+                    <div class="flex gap-2 mb-4">
+                        <button id="calendarTabBtn" class="google-btn">Calendar View</button>
+                        <button id="tableTabBtn" class="google-btn">Table View</button>
+                    </div>
+                    <div id="calendarViewPanel">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <h3 class="text-lg font-semibold text-indigo-700">Weekly Booking</h3>
+                                <div class="flex items-center gap-2">
+                                    <button id="prevWeekBtn" class="google-btn px-2 py-1 text-xs">&#8592; Prev</button>
+                                    <span id="weekRangeLabel" class="font-semibold text-gray-700"></span>
+                                    <button id="nextWeekBtn" class="google-btn px-2 py-1 text-xs">Next &#8594;</button>
+                                </div>
+                            </div>
+                            <!-- Loading spinner removed as requested -->
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 rounded-lg shadow bg-white">
+                                    <thead class="bg-gray-100">
+                                        <tr id="weeklyGridHeaderRow">
+                                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Time</th>
+                                            <!-- JS will fill weekday/date headers here -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="weeklyBookingsBody" class="bg-white divide-y divide-gray-100">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="tableViewPanel" class="hidden">
+                        <div class="flex flex-col gap-2 mb-4">
+                            <div class="flex gap-2 items-center"> 
+                                <input type="date" id="filterStartDate" class="google-btn" placeholder="Start Date">
+                                <input type="date" id="filterEndDate" class="google-btn" placeholder="End Date">
+                                <input type="text" id="filterUser" class="google-btn" placeholder="User">
+                                <select id="filterRoom" class="google-btn">
+                                    {% comment %} <option value="">All Rooms</option> {% endcomment %}
+                                    {% for room in rooms_data %}
+                                        <option value="{{ room.id }}">{{ room.name }}</option>
+                                    {% endfor %} 
+                                </select>
+                                
+                                <button id="applyFiltersBtn" class="google-btn">Apply Filters</button>
+                                <button id="refreshTableBtn" class="google-btn">Refresh</button>
+                            </div>
+                        </div>
+                        <!-- Debug panel for raw booking data and errors -->
+                        <div id="tableDebugPanel" class="bg-yellow-50 border border-yellow-300 rounded p-2 mb-2 text-xs text-yellow-800" style="display:none;"></div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 rounded-lg shadow bg-white">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Room</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Date</th>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Time</th>
+                                        {% comment %} <th class="px-4 py-2 text-left text-xs font-semibold text-gray-700 uppercase">Status</th> {% endcomment %}
+                                    </tr>
+                                </thead>
+                                <tbody id="bookingTableBody" class="bg-white divide-y divide-gray-100">
+                                </tbody>
+                            </table>
+                            <div id="noTableBookingsMsg" class="text-center text-gray-400 py-8 hidden">No bookings found.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="bookingModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="modal-content bg-white rounded-lg shadow-lg w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-indigo-700" id="modalRoomName">Booking Details</h2>
+                <button id="closeModalBtn" class="text-gray-500 hover:text-gray-700 text-xl">&times;</button>
+            </div>
+            <div id="modalContent" class="space-y-2">
+            </div>
+        </div>
+    </div>
+    
+
+    <script>
+        // Only set global variables here, all logic is in room_schedule.js
+        window.currentUserId = {{ user.id }};
+        window.apiRoomBookingsUrl = '{% url "accounts:api_room_bookings" %}';
+    </script>
+    <script src="{% static 'UserPage/js/room_schedule.js' %}"></script>
+    {% include 'includes/chatbot_widget.html' %}
+</body>
+</html>

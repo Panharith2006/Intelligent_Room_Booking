@@ -7,7 +7,6 @@
     <title>Service & Support | RUPP Room Booking</title>
     <link rel="stylesheet" href="{% static 'UserPage/css/service.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="{% static 'UserPage/js/service.js' %}" defer></script>
 </head>
 <body>
     <div class="header">
@@ -23,6 +22,7 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item active">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
@@ -107,10 +107,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <div class="faq-question" onclick="toggleFAQ(this)">
-                        <h3>How do I reset my password?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
+                    
                     <div class="faq-answer">
                         <p>Go to the Settings page and select "Change Password". You'll need to enter your current password and set a new one. Make sure your new password meets the security requirements.</p>
                     </div>
@@ -155,7 +152,7 @@
                         <li><a href="{% url 'accounts:booking' %}"><i class="fas fa-calendar-check"></i> Room Booking</a></li>
                         <li><a href="{% url 'accounts:booked' %}"><i class="fas fa-list"></i> My Bookings</a></li>
                         <li><a href="#faq"><i class="fas fa-question-circle"></i> Help / FAQ</a></li>
-                        <li><a href="{% url 'admin:index' %}"><i class="fas fa-user-shield"></i> Admin Login</a></li>
+                        {% comment %} <li><a href="{% url 'admin:index' %}"><i class="fas fa-user-shield"></i> Admin Login</a></li> {% endcomment %}
                     </ul>
                 </div>
 
@@ -228,16 +225,10 @@
                     <div class="step-number">3</div>
                     <div class="step-content">
                         <h3>Fill Booking Details</h3>
-                        <p>Complete the booking form with your information and purpose of use. Provide accurate details for approval.</p>
+                        <p>Complete the booking form with your information and purpose of use. Your booking will be confirmed immediately.</p>
                     </div>
                 </div>
-                <div class="step">
-                    <div class="step-number">4</div>
-                    <div class="step-content">
-                        <h3>Confirm & Wait</h3>
-                        <p>Review your booking details and submit. You'll receive email confirmation once your booking is approved.</p>
-                    </div>
-                </div>
+
             </div>
         </section>
 
@@ -245,7 +236,22 @@
         <section class="contact-form-section">
             <h2><i class="fas fa-paper-plane"></i> Send us a Message</h2>
             <div class="contact-form-container">
-                <form class="contact-form" method="post" action="{% url 'accounts:contact_support' %}">
+                {% if messages %}
+                    <div id="persistent-success-message">
+                        {% for message in messages %}
+                            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-bottom: 1rem; color: #27ae60; font-weight: 500; font-size: 1.1rem;">
+                                <i class="fas fa-check-circle" style="margin-right:8px;"></i>{{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <script>
+                        setTimeout(function() {
+                            var msg = document.getElementById('persistent-success-message');
+                            if (msg) msg.style.display = 'none';
+                        }, 5000);
+                    </script>
+                {% endif %}
+                <form class="contact-form" method="post" action="{% url 'accounts:service' %}" id="contactForm">
                     {% csrf_token %}
                     <div class="form-row">
                         <div class="form-group">
@@ -272,7 +278,7 @@
                         <label for="message">Message</label>
                         <textarea id="message" name="message" rows="5" required placeholder="Describe your issue or question..."></textarea>
                     </div>
-                    <button type="submit" class="submit-btn">
+                    <button type="submit" class="submit-btn" id="submitBtn">
                         <i class="fas fa-paper-plane"></i> Send Message
                     </button>
                 </form>
@@ -303,16 +309,14 @@
         </div>
     </footer>
 
-    <script src="{% static 'UserPage/js/service.js' %}"></script>
+   
     <script>
         function toggleFAQ(element) {
             const faqItem = element.parentElement;
             const answer = faqItem.querySelector('.faq-answer');
             const chevron = element.querySelector('.fas');
-            
             // Toggle active class
             faqItem.classList.toggle('active');
-            
             // Toggle chevron direction
             if (faqItem.classList.contains('active')) {
                 chevron.classList.remove('fa-chevron-down');
@@ -337,24 +341,101 @@
             });
         });
 
-        // Contact form submission
-        document.querySelector('.contact-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
+        // Enhanced client-side validation and smooth UX for contact form
+        document.getElementById('contactForm').addEventListener('submit', function(e) {
+            var btn = document.getElementById('submitBtn');
+            var name = document.getElementById('name');
+            var email = document.getElementById('email');
+            var subject = document.getElementById('subject');
+            var message = document.getElementById('message');
+            var valid = true;
+
+            // Remove previous errors
+            document.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+            [name, email, subject, message].forEach(function(field) { field.classList.remove('error'); });
+
+            // Validate fields
+            if (!name.value.trim()) {
+                showFieldError(name, 'Name is required'); valid = false;
+            }
+            if (!email.value.trim()) {
+                showFieldError(email, 'Email is required'); valid = false;
+            } else if (!/^\S+@\S+\.\S+$/.test(email.value)) {
+                showFieldError(email, 'Enter a valid email'); valid = false;
+            }
+            if (!subject.value) {
+                showFieldError(subject, 'Please select a subject'); valid = false;
+            }
+            if (!message.value.trim()) {
+                showFieldError(message, 'Message is required'); valid = false;
+            } else if (message.value.trim().length < 10) {
+                showFieldError(message, 'Message must be at least 10 characters'); valid = false;
+            }
+
+            if (!valid) {
+                e.preventDefault();
+                shakeForm(this);
+                return false;
+            }
+
             // Show loading state
-            const submitBtn = this.querySelector('.submit-btn');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-            submitBtn.disabled = true;
-            
-            // Simulate form submission
-            setTimeout(() => {
-                alert('Thank you for your message! We will get back to you soon.');
-                this.reset();
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }, 2000);
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
         });
+
+        function showFieldError(field, msg) {
+            field.classList.add('error');
+            var err = document.createElement('div');
+            err.className = 'field-error';
+            err.style.color = '#e74c3c';
+            err.style.fontSize = '0.9rem';
+            err.style.marginTop = '0.25rem';
+            err.textContent = msg;
+            field.parentNode.appendChild(err);
+        }
+
+        function shakeForm(form) {
+            form.style.animation = 'shake 0.3s';
+            form.addEventListener('animationend', function() {
+                form.style.animation = '';
+            }, { once: true });
+        }
+
+        // Show Django messages as a toast if present and prevent form resubmission on reload
+        window.addEventListener('DOMContentLoaded', function() {
+            var msgDiv = document.getElementById('django-messages');
+            if (msgDiv) {
+                var toast = document.createElement('div');
+                toast.style.position = 'fixed';
+                toast.style.top = '20px';
+                toast.style.right = '20px';
+                toast.style.background = '#27ae60';
+                toast.style.color = 'white';
+                toast.style.padding = '1rem 1.5rem';
+                toast.style.borderRadius = '8px';
+                toast.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
+                toast.style.zIndex = '1000';
+                toast.style.fontSize = '1.1rem';
+                toast.style.display = 'flex';
+                toast.style.alignItems = 'center';
+                toast.innerHTML = '<i class="fas fa-check-circle" style="margin-right:8px;"></i>' + msgDiv.innerText;
+                document.body.appendChild(toast);
+                setTimeout(function() { toast.remove(); }, 5000);
+                // Reset form after successful submission
+                var form = document.getElementById('contactForm');
+                if (form) form.reset();
+                // Prevent resubmission on reload
+                if (window.history.replaceState) {
+                    window.history.replaceState(null, null, window.location.href);
+                }
+            }
+        });
+
+        // Add shake animation style
+        var style = document.createElement('style');
+        style.innerHTML = `@keyframes shake { 0% { transform: translateX(0); } 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-8px); } 80% { transform: translateX(8px); } 100% { transform: translateX(0); } }`;
+        document.head.appendChild(style);
     </script>
+        {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

@@ -12,7 +12,8 @@ def admin_required(view_func):
             messages.error(request, 'You must be logged in to access this page.')
             return redirect('login')
         
-        if not request.user.is_admin:
+        # Allow access if user is admin, staff, or superuser
+        if not (request.user.is_admin or request.user.is_staff or request.user.is_superuser):
             messages.error(request, 'You do not have permission to access this page.')
             return HttpResponseForbidden('Access denied. Admin privileges required.')
         

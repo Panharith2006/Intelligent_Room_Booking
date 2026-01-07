@@ -297,6 +297,9 @@ body {
     background: linear-gradient(45deg, var(--secondary-color), var(--success-color));
     position: relative;
     overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .room-image::before {
@@ -306,10 +309,15 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: url('https://www.rupp.edu.kh/fe/factor4.0/images/desk_and_chairs_are_installed_beforePCarrived1.jpg');
-    background-size: cover;
-    background-position: center;
-    opacity: 0.9;
+    background: rgba(0, 0, 0, 0.1);
+    z-index: 1;
+}
+
+.room-status-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
 }
 
 .room-status {
@@ -806,4 +814,32 @@ body {
     .stats-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* Room status overlay styles */
+.room-status-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.room-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.room-status.available {
+    background-color: #28a745;
+    color: white;
+}
+
+.room-status.occupied {
+    background-color: #dc3545;
+    color: white;
 }

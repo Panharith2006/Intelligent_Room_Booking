@@ -1,0 +1,120 @@
+/* Responsive adjustments for mobile */
+@media (max-width: 600px) {
+    body, html {
+        font-size: 15px;
+        padding: 0;
+        margin: 0;
+    }
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 5px;
+    }
+    .logo img {
+        width: 40px;
+        height: 40px;
+    }
+    .logo div {
+        font-size: 1.1em;
+    }
+    .nav {
+        flex-direction: column;
+        width: 100%;
+    }
+    .nav-item {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+        text-align: left;
+    }
+    .container {
+        padding: 5px;
+    }
+    .card {
+        padding: 10px;
+        margin: 10px 0;
+    }
+    .section-title {
+        font-size: 1em;
+    }
+    .dropdown-container select, .form-control, textarea {
+        font-size: 1em;
+        padding: 8px;
+    }
+    .form-group, .time-group {
+        flex-direction: column;
+        width: 100%;
+    }
+    .time-container {
+        flex-direction: column;
+    }
+    .booking-btn {
+        width: 100%;
+        font-size: 1.1em;
+        padding: 12px 0;
+    }
+    .modal-content {
+        width: 95vw;
+        min-width: unset;
+        padding: 10px;
+    }
+    .modal-header h3 {
+        font-size: 1.2em;
+    }
+    .modal-details {
+        font-size: 1em;
+    }
+    .modal-btn {
+        width: 100%;
+        margin: 5px 0;
+    }
+    .alert {
+        font-size: 1em;
+    }
+}
+
+/* Announcements Styling */
+.announcements-section {
+    margin-bottom: 1rem;
+}
+
+.announcements-section .alert {
+    border-left: 4px solid;
+    margin-bottom: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.announcements-section .alert-danger {
+    border-left-color: #dc3545;
+}
+
+.announcements-section .alert-warning {
+    border-left-color: #ffc107;
+}
+
+.announcements-section .alert-info {
+    border-left-color: #0dcaf0;
+}
+
+.announcements-section .alert-secondary {
+    border-left-color: #6c757d;
+}
+
+.announcements-section .alert-heading {
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+    .announcements-section {
+        margin: 0 -5px 1rem -5px;
+    }
+    
+    .announcements-section .alert {
+        border-radius: 0;
+        margin-bottom: 0.5rem;
+    }
+}

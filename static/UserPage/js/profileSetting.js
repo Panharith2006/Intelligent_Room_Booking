@@ -28,13 +28,7 @@ function initializeProfileSettings() {
 
 function setupEventListeners() {
     // Form submission handlers
-    const profileForm = document.querySelector('.profile-form');
     const passwordForm = document.querySelector('.password-form');
-    
-    if (profileForm) {
-        profileForm.addEventListener('submit', handleProfileSubmit);
-    }
-    
     if (passwordForm) {
         passwordForm.addEventListener('submit', handlePasswordSubmit);
     }
@@ -49,8 +43,6 @@ function setupEventListeners() {
     const positionSelect = document.getElementById('position');
     if (positionSelect) {
         positionSelect.addEventListener('change', handlePositionChange);
-    }
-}
 
 function handleProfileSubmit(e) {
     e.preventDefault();
@@ -257,42 +249,6 @@ function saveToLocalStorage() {
     localStorage.setItem('profileFormData', JSON.stringify(formData));
 }
 
-function loadProfileData() {
-    const savedData = localStorage.getItem('profileFormData');
-    if (savedData) {
-        try {
-            const data = JSON.parse(savedData);
-            Object.keys(data).forEach(key => {
-                const input = document.querySelector(`[name="${key}"]`);
-                if (input && input.type !== 'password') {
-                    input.value = data[key];
-                }
-            });
-        } catch (e) {
-            console.error('Error loading saved data:', e);
-        }
-    }
-}
-
-function handlePositionChange(e) {
-    const position = e.target.value;
-    const departmentSelect = document.getElementById('department');
-    
-    // Update department options based on position
-    if (departmentSelect) {
-        const studentOptions = ['computer_science', 'engineering', 'business', 'law', 'medicine', 'arts', 'science'];
-        const staffOptions = ['administration', 'it', 'finance', 'hr', 'facilities', 'other'];
-        
-        let options = [];
-        if (position === 'student') {
-            options = studentOptions;
-        } else if (position === 'staff' || position === 'admin') {
-            options = staffOptions;
-        } else {
-            options = [...studentOptions, ...staffOptions];
-        }
-        
-        // Update department select options
         updateDepartmentOptions(departmentSelect, options);
     }
 }

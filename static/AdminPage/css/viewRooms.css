@@ -1,55 +1,115 @@
+/* --- AI PATCH: Clean, Modern Room Table Styling --- */
+.room-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 18px rgba(60, 72, 88, 0.10);
+    overflow: hidden;
+    margin-bottom: 0;
+    font-size: 1rem;
+    margin-top: 0;
+}
+.room-table th, .room-table td {
+    padding: 1.1rem 0.9rem;
+    text-align: left;
+}
+.room-table th {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+.room-table tr {
+    transition: background 0.18s, box-shadow 0.18s;
+}
+.room-table tr:nth-child(even) {
+    background: #fafbfc;
+}
+.room-table tr:hover {
+    background: #f0f6ff;
+    box-shadow: 0 2px 8px rgba(60, 72, 88, 0.10);
+}
+.room-table td {
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+    vertical-align: middle;
+}
+.room-table tr:last-child td {
+    border-bottom: none;
+}
+.room-table .badge {
+    font-size: 0.92rem;
+    padding: 0.32em 0.8em;
+    border-radius: 10px;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(60, 72, 88, 0.07);
+}
+.room-table .badge.bg-success {
+    background: #e0f7e9 !important;
+    color: #1b7f3a !important;
+    border: 1px solid #b6e7c7;
+}
+.room-table .badge.bg-danger {
+    background: #ffeaea !important;
+    color: #c81e1e !important;
+    border: 1px solid #f7bebe;
+}
+.room-table .badge.bg-secondary {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb;
+}
+.room-table .btn {
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    box-shadow: none;
+}
+.room-table .btn:hover {
+    box-shadow: 0 2px 8px rgba(60, 72, 88, 0.10);
+    transform: translateY(-2px);
+}
+.room-table .btn-outline-primary {
+    border: 2px solid #667eea;
+    color: #667eea;
+    background: transparent;
+}
+.room-table .btn-outline-primary:hover {
+    background: #667eea;
+    color: #fff;
+    border-color: #667eea;
+}
+.room-table .btn-outline-danger {
+    border: 2px solid #ff4b2b;
+    color: #ff4b2b;
+    background: transparent;
+}
+.room-table .btn-outline-danger:hover {
+    background: #ff4b2b;
+    color: #fff;
+    border-color: #ff4b2b;
+}
+.room-table .btn-outline-secondary {
+    border: 2px solid #764ba2;
+    color: #764ba2;
+    background: transparent;
+}
+.room-table .btn-outline-secondary:hover {
+    background: #764ba2;
+    color: #fff;
+    border-color: #764ba2;
+}
+/* --- End AI PATCH --- */
 /* View Rooms Page Enhanced Styling */
-
-/* Header Styles */
-.header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 1rem 0;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-}
-
-.header .container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.header .logo {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.header .logo img {
-    height: 40px;
-}
-
-.header .nav {
-    display: flex;
-    gap: 20px;
-}
-
-.header .nav-item {
-    color: white;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
-    transition: all 0.3s ease;
-}
-
-.header .nav-item:hover, .header .nav-item.active {
-    background-color: rgba(255,255,255,0.2);
-    color: white;
-}
-
-.header .user-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
+/* Header styles removed - using dedicated admin_header.css */
 
 html, body {
     background-color: #f8f9fa !important;

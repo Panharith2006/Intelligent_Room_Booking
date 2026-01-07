@@ -18,157 +18,279 @@
     --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
 }
 
-/* Professional Header Styles */
+/* Reset any list styling that might cause dots */
+* {
+    list-style: none !important;
+    list-style-type: none !important;
+}
+
+ul, ol, li {
+    list-style: none !important;
+    list-style-type: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Professional Header Styles - Ultra Clean Design */
+body .header,
 .header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-    color: white;
-    padding: 1rem 0;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+    color: white !important;
+    padding: 0.8rem 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
 }
 
+body .header .container,
 .header .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    max-width: 1200px !important;
+    margin: 0 auto !important;
+    padding: 0 20px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
 }
 
+body .header .logo,
 .header .logo {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
 }
 
+body .header .logo img,
 .header .logo img {
-    height: 50px;
-    border-radius: 8px;
+    height: 50px !important;
+    border-radius: 8px !important;
+    width: auto !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
+body .header .logo div,
 .header .logo div {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: white;
+    font-size: 1.2rem !important;
+    font-weight: 600 !important;
+    color: white !important;
 }
 
-/* Clean Navigation Styles */
+/* Ultra Clean Navigation Styles - No borders or boxes */
+body .header .nav,
 .header .nav {
-    display: flex;
-    gap: 30px;
-    align-items: center;
+    display: flex !important;
+    gap: 25px !important;
+    align-items: center !important;
+    flex-direction: row !important;
 }
 
+body .header .nav-item,
 .header .nav-item {
-    color: white;
-    text-decoration: none;
-    padding: 10px 20px;
-    border-radius: 25px;
-    transition: all 0.3s ease;
-    font-weight: 500;   
-    font-size: 1rem;
-    position: relative;
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-decoration: none !important;
+    padding: 8px 16px !important;
+    border-radius: 20px !important;
+    transition: all 0.3s ease !important;
+    font-weight: 500 !important;   
+    font-size: 0.95rem !important;
+    position: relative !important;
+    background: none !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-shadow: none !important;
 }
 
+body .header .nav-item:hover,
 .header .nav-item:hover {
-    background-color: rgba(255, 255, 255, 0.15);
-    color: white;
-    transform: translateY(-2px);
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
+body .header .nav-item.active,
 .header .nav-item.active {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: white !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
 }
 
-/* User Info Styles */
+/* Hamburger Menu Styles - Higher specificity */
+body .header .hamburger,
+.header .hamburger {
+    display: none !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    z-index: 101 !important;
+}
+
+body .header .hamburger span,
+.header .hamburger span {
+    display: block !important;
+    width: 28px !important;
+    height: 4px !important;
+    margin: 4px 0 !important;
+    background: white !important;
+    border-radius: 2px !important;
+    transition: 0.3s !important;
+}
+
+/* Ultra Clean User Info Styles - No boxes */
+body .header .user-info,
 .header .user-info {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    display: flex !important;
+    align-items: center !important;
+    gap: 15px !important;
 }
 
+body .header .user-info span,
 .header .user-info span {
-    color: white;
-    font-weight: 500;
-    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.9) !important;
+    font-weight: 500 !important;
+    font-size: 0.95rem !important;
 }
 
+body .header .btn-outline-danger,
 .header .btn-outline-danger {
-    border: 2px solid rgba(220, 53, 69, 0.8);
-    color: rgba(220, 53, 69, 0.9);
-    background-color: rgba(255, 255, 255, 0.1);
-    padding: 8px 16px;
-    border-radius: 20px;
-    text-decoration: none;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+    background-color: transparent !important;
+    padding: 6px 14px !important;
+    border-radius: 18px !important;
+    text-decoration: none !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    transition: all 0.3s ease !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
 }
 
+body .header .btn-outline-danger:hover,
 .header .btn-outline-danger:hover {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    transform: none !important;
+    box-shadow: none !important;
 }
 
-/* Responsive Header Styles */
+/* Responsive Header Styles - Higher specificity */
 @media (max-width: 992px) {
+    body .header .container,
     .header .container {
-        flex-wrap: wrap;
-        gap: 15px;
+        flex-wrap: wrap !important;
+        gap: 15px !important;
     }
     
+    body .header .nav,
     .header .nav {
-        gap: 20px;
+        gap: 20px !important;
     }
     
+    body .header .nav-item,
     .header .nav-item {
-        padding: 8px 16px;
-        font-size: 0.9rem;
+        padding: 8px 16px !important;
+        font-size: 0.9rem !important;
     }
 }
 
 @media (max-width: 768px) {
-    .header .container {
-        flex-direction: column;
-        gap: 15px;
-        padding: 0 15px;
+    body .header .hamburger,
+    .header .hamburger {
+        display: flex !important;
     }
     
+    body .header .nav,
     .header .nav {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 15px;
+        display: none !important;
+        position: absolute !important;
+        top: 100% !important;
+        left: 0 !important;
+        width: 100% !important;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%) !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+        z-index: 100 !important;
+        padding: 20px 0 !important;
     }
     
+    body .header .nav.open,
+    .header .nav.open {
+        display: flex !important;
+    }
+    
+    body .header .nav-item,
+    .header .nav-item {
+        color: white !important;
+        width: 100% !important;
+        padding: 15px 20px !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        font-size: 1rem !important;
+        border-radius: 0 !important;
+        background: none !important;
+        transform: none !important;
+    }
+    
+    body .header .nav-item:hover,
+    .header .nav-item:hover {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        transform: none !important;
+    }
+    
+    body .header .nav-item.active,
+    .header .nav-item.active {
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        transform: none !important;
+    }
+    
+    body .header .container,
+    .header .container {
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        padding: 0 15px !important;
+    }
+    
+    body .header .user-info,
+    .header .user-info {
+        display: none !important;
+    }
+    
+    body .header .logo div,
     .header .logo div {
-        font-size: 1rem;
+        font-size: 1rem !important;
     }
 }
 
 @media (max-width: 576px) {
+    body .header .nav-item,
     .header .nav-item {
-        padding: 6px 12px;
-        font-size: 0.85rem;
+        padding: 12px 15px !important;
+        font-size: 0.9rem !important;
     }
     
-    .header .user-info span {
-        display: none;
-    }
-    
+    body .header .logo div,
     .header .logo div {
-        font-size: 0.9rem;
-        max-width: 150px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        font-size: 0.9rem !important;
+        max-width: 150px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
     }
 }

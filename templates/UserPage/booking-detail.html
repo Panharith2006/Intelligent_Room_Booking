@@ -4,12 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <title>Booking Detail | RUPP Room Booking</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{% static 'UserPage/css/booking-detail.css' %}">
     <script src="{% static 'UserPage/js/booking-detail.js' %}" defer></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
+    {% csrf_token %}
 
     <!-- Top Navigation Bar -->
     <div class="header">
@@ -41,8 +43,6 @@
                 <div class="status-badge status-{{ booking.status }}">
                     {% if booking.status == 'confirmed' %}
                         <i class="fas fa-check-circle"></i> Confirmed
-                    {% elif booking.status == 'pending' %}
-                        <i class="fas fa-clock"></i> Pending
                     {% elif booking.status == 'cancelled' %}
                         <i class="fas fa-times-circle"></i> Cancelled
                     {% else %}
@@ -58,10 +58,7 @@
                             <span class="label">Title:</span>
                             <span class="value">{{ booking.title|default:"Room Booking" }}</span>
                         </div>
-                        <div class="info-item">
-                            <span class="label">Description:</span>
-                            <span class="value">{{ booking.description|default:"No description provided" }}</span>
-                        </div>
+                    
                         <div class="info-item">
                             <span class="label">Purpose:</span>
                             <span class="value">{{ booking.purpose|default:"General Use" }}</span>
@@ -74,17 +71,14 @@
 
                     <div class="info-section">
                         <h3><i class="fas fa-map-marker-alt"></i> Location Details</h3>
-                        <div class="info-item">
-                            <span class="label">Building:</span>
-                            <span class="value">{{ booking.room.building.name|default:"Building STEM" }}</span>
-                        </div>
+                       
                         <div class="info-item">
                             <span class="label">Room:</span>
                             <span class="value">{{ booking.room.name|default:"Room 206" }}</span>
                         </div>
                         <div class="info-item">
-                            <span class="label">Floor:</span>
-                            <span class="value">{{ booking.room.floor|default:"2nd Floor" }}</span>
+                            <span class="label">Building Name:</span>
+                            <span class="value">{{ booking.room.room_number|default:"206" }}</span>
                         </div>
                         <div class="info-item">
                             <span class="label">Capacity:</span>
@@ -154,13 +148,37 @@
                         <i class="fas fa-arrow-left"></i> Back to Bookings
                     </a>
                     
-                    {% if booking.status == 'confirmed' or booking.status == 'pending' %}
-                        <button class="btn btn-primary" onclick="editBooking({{ booking.id }})">
-                            <i class="fas fa-edit"></i> Edit Booking
-                        </button>
-                        <button class="btn btn-danger" onclick="cancelBooking({{ booking.id }})">
-                            <i class="fas fa-times"></i> Cancel Booking
-                        </button>
+                    {% if booking.status == 'confirmed' %}
+                        {% if can_cancel %}
+                            <button class="btn btn-danger" onclick="console.log('Cancel button clicked for booking:', {{ booking.id }}); cancelBooking({{ booking.id }});" 
+                                    data-booking-id="{{ booking.id }}" 
+                                    data-start-time="{{ booking.start_time|date:'c' }}">
+                                <i class="fas fa-times"></i> Cancel Booking
+                            </button>
+                            <div class="cancel-notice">
+                                <i class="fas fa-info-circle"></i> 
+                                You can cancel up to 24 hours before the booking starts.
+                                <br>Time until booking: {{ hours_until_booking|floatformat:1 }} hours
+                            </div>
+                        {% else %}
+                            {% if hours_until_booking > 0 %}
+                                <button class="btn btn-secondary" disabled title="Must cancel 24 hours in advance">
+                                    <i class="fas fa-clock"></i> Too Late to Cancel ({{ hours_until_booking|floatformat:1 }}h left)
+                                </button>
+                                <div class="cancel-notice warning">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    Cannot cancel - Must cancel at least 24 hours in advance.
+                                </div>
+                            {% else %}
+                                <button class="btn btn-secondary" disabled title="Booking has started">
+                                    <i class="fas fa-play"></i> Booking Started
+                                </button>
+                                <div class="cancel-notice warning">
+                                    <i class="fas fa-play"></i> 
+                                    Cannot cancel - Booking has already started.
+                                </div>
+                            {% endif %}
+                        {% endif %}
                     {% endif %}
                 </div>
             </div>
@@ -195,5 +213,183 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
     <script src="{% static 'UserPage/js/booking-detail.js' %}"></script>
+    
+    <script>
+        // 🚨 ENHANCED FALLBACK FUNCTIONS - More robust error handling
+        console.log('Enhanced booking detail fallback script loaded');
+        
+        // Enhanced CSRF token retrieval
+        function getCSRFToken() {
+            // Method 1: From meta tag
+            let token = document.querySelector('meta[name="csrf-token"]');
+            if (token) {
+                console.log('CSRF token found in meta tag');
+                return token.getAttribute('content');
+            }
+            
+            // Method 2: From form input
+            token = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (token) {
+                console.log('CSRF token found in form input');
+                return token.value;
+            }
+            
+            // Method 3: From cookie
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, 10) === 'csrftoken=') {
+                        cookieValue = decodeURIComponent(cookie.substring(10));
+                        console.log('CSRF token found in cookie');
+                        break;
+                    }
+                }
+            }
+            
+            if (!cookieValue) {
+                console.error('CSRF token not found anywhere!');
+            }
+            return cookieValue;
+        }
+        
+        // Override or create cancelBooking function with enhanced error handling
+        window.cancelBooking = function(bookingId) {
+            console.log('Enhanced cancelBooking called for ID:', bookingId);
+            
+            // Check 24-hour rule first
+            const cancelButton = document.querySelector(`button[data-booking-id="${bookingId}"]`);
+            if (cancelButton) {
+                const startTimeStr = cancelButton.getAttribute('data-start-time');
+                if (startTimeStr) {
+                    const startTime = new Date(startTimeStr);
+                    const currentTime = new Date();
+                    const hoursUntilBooking = (startTime - currentTime) / (1000 * 60 * 60);
+                    
+                    console.log('Hours until booking:', hoursUntilBooking);
+                    
+                    if (hoursUntilBooking < 24) {
+                        if (hoursUntilBooking <= 0) {
+                            alert('Cannot cancel booking that has already started.');
+                        } else {
+                            alert(`Cannot cancel booking. Must cancel at least 24 hours in advance. Only ${hoursUntilBooking.toFixed(1)} hours remaining.`);
+                        }
+                        return;
+                    }
+                }
+            }
+            
+            if (confirm('Are you sure you want to cancel this booking?')) {
+                const csrfToken = getCSRFToken();
+                
+                if (csrfToken) {
+                    console.log('Attempting AJAX cancel request...');
+                    fetch(`/accounts/booking/${bookingId}/cancel/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Content-Type': 'application/json',
+                        },
+                    })
+                    .then(response => {
+                        console.log('Response status:', response.status);
+                        console.log('Response content-type:', response.headers.get('content-type'));
+                        
+                        if (response.ok) {
+                            // Check if response is JSON
+                            const contentType = response.headers.get('content-type');
+                            if (contentType && contentType.includes('application/json')) {
+                                return response.json();
+                            } else {
+                                // If it's HTML, get the text to see the error
+                                return response.text().then(text => {
+                                    console.log('Received HTML instead of JSON:', text.substring(0, 200));
+                                    throw new Error('Server returned HTML instead of JSON - there may be an error on the server side');
+                                });
+                            }
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    })
+                    .then(data => {
+                        console.log('Success response:', data);
+                        if (data.success) {
+                            alert(data.message || 'Booking cancelled successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.message || 'Failed to cancel booking'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('AJAX Error:', error);
+                        alert('Error cancelling booking: ' + error.message + '\n\nTrying alternative method...');
+                        
+                        // Fallback to form submission
+                        console.log('Using form submission fallback');
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = `/accounts/booking/${bookingId}/cancel/`;
+                        
+                        const csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = 'csrfmiddlewaretoken';
+                        csrfInput.value = csrfToken;
+                        form.appendChild(csrfInput);
+                        
+                        document.body.appendChild(form);
+                        form.submit();
+                    });
+                } else {
+                    alert('CSRF token not found. Please refresh the page and try again.');
+                }
+            }
+        };
+        
+        // Enhanced modal functions
+        window.closeCancelModal = function() {
+            console.log('Closing cancel modal');
+            const modal = document.getElementById('cancelModal');
+            if (modal) modal.style.display = 'none';
+        };
+        
+        window.confirmCancel = function() {
+            console.log('Enhanced confirmCancel called');
+            const bookingId = window.bookingToCancel || document.querySelector('[data-booking-id]')?.getAttribute('data-booking-id');
+            console.log('Booking ID for cancel:', bookingId);
+            if (bookingId) {
+                window.cancelBooking(bookingId);
+            }
+            closeCancelModal();
+        };
+        
+        // Enhanced DOM ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Enhanced DOM loaded for booking detail');
+            
+            // Test CSRF token availability
+            const csrfToken = getCSRFToken();
+            console.log('CSRF Token available:', csrfToken ? 'Yes (' + csrfToken.substring(0, 10) + '...)' : 'No');
+            
+            // Test button availability
+            const cancelButtons = document.querySelectorAll('.btn-danger');
+            console.log('Found', cancelButtons.length, 'cancel buttons');
+            
+            cancelButtons.forEach((button, index) => {
+                console.log(`Cancel Button ${index}:`, {
+                    text: button.textContent.trim(),
+                    bookingId: button.getAttribute('data-booking-id'),
+                    startTime: button.getAttribute('data-start-time'),
+                    onclick: button.onclick ? 'has onclick' : 'no onclick'
+                });
+            });
+            
+            // Test modal availability
+            const modal = document.getElementById('cancelModal');
+            console.log('Cancel modal found:', modal ? 'Yes' : 'No');
+        });
+    </script>
 </body>
+        {% include 'includes/chatbot_widget.html' %}
 </html>

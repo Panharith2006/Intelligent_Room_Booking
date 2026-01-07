@@ -14,8 +14,16 @@ class RoomForm(forms.ModelForm):
     
     class Meta:
         model = Room
-        fields = ['name', 'room_number', 'room_type', 'capacity', 'description', 
-                 'equipment', 'is_available']
+        fields = [
+            'name',
+            'room_number',
+            'room_type',
+            'capacity',
+            'description',
+            'equipment',
+            'image',
+            'is_available',
+        ]
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -23,7 +31,7 @@ class RoomForm(forms.ModelForm):
             }),
             'room_number': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'e.g., A-101'
+                'placeholder': 'e.g., A-101 (duplicates allowed)'
             }),
             'room_type': forms.Select(attrs={
                 'class': 'form-control'
@@ -43,6 +51,10 @@ class RoomForm(forms.ModelForm):
                 'rows': 2,
                 'placeholder': 'Available equipment (comma-separated)'
             }),
+            'image': forms.FileInput(attrs={
+                'class': 'form-control',
+                'accept': 'image/*'
+            }),
             'is_available': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             })
@@ -53,6 +65,43 @@ class RoomForm(forms.ModelForm):
         if capacity and capacity < 1:
             raise forms.ValidationError('Capacity must be at least 1.')
         return capacity
+
+    def clean_room_number(self):
+        """Allow duplicate room numbers for both new and existing rooms"""
+        room_number = self.cleaned_data.get('room_number')
+        if room_number:
+            # Just clean whitespace but don't enforce uniqueness
+            room_number = room_number.strip()
+            # Explicitly allow duplicates - no validation against existing room numbers
+            return room_number
+        return room_number
+
+    def clean_image(self):
+        """Validate image file"""
+        image = self.cleaned_data.get('image')
+        if image:
+            # Check file size (10MB limit)
+            if image.size > 10 * 1024 * 1024:
+                raise forms.ValidationError('Image file size should be less than 10MB.')
+            
+            # Check file type
+            if not image.content_type.startswith('image/'):
+                raise forms.ValidationError('Please upload a valid image file (JPG, PNG, GIF, etc.).')
+        
+        return image
+
+    def clean(self):
+        """Override clean method to explicitly allow duplicate room numbers with images"""
+        cleaned_data = super().clean()
+        
+        # Explicitly allow duplicate room numbers regardless of other fields
+        # This overrides any potential uniqueness validation
+        room_number = cleaned_data.get('room_number')
+        if room_number:
+            # No validation against existing room numbers - duplicates are explicitly allowed
+            pass
+        
+        return cleaned_data
 
 
 class RoomSearchForm(forms.Form):
@@ -256,7 +305,7 @@ class BookingForm(forms.ModelForm):
                 room=room,
                 start_time__lt=end_datetime,
                 end_time__gt=start_datetime,
-                status__in=['pending', 'confirmed']
+                    status__in=['confirmed']
             )
             
             # Exclude current booking if editing
@@ -264,7 +313,16 @@ class BookingForm(forms.ModelForm):
                 conflicts = conflicts.exclude(pk=self.instance.pk)
             
             if conflicts.exists():
-                raise forms.ValidationError('This time slot conflicts with an existing booking.')
+                # Get details of conflicting booking for better error message
+                conflict = conflicts.first()
+                conflict_start = conflict.start_time.strftime('%I:%M %p')
+                conflict_end = conflict.end_time.strftime('%I:%M %p')
+                conflict_user = conflict.user.get_full_name() or conflict.user.username
+                
+                raise forms.ValidationError(
+                    f'This time slot conflicts with an existing booking by {conflict_user} '
+                    f'from {conflict_start} to {conflict_end}. Please choose a different time.'
+                )
         
         # Store combined datetime for use in views
         cleaned_data['start_datetime'] = start_datetime
@@ -278,10 +336,8 @@ class BookingSearchForm(forms.Form):
     
     STATUS_CHOICES = [
         ('', 'All Statuses'),
-        ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
-        ('completed', 'Completed'),
     ]
     
     search = forms.CharField(
@@ -448,120 +504,8 @@ class BookingRuleForm(forms.ModelForm):
             'booking_end_time',
             'is_active',
         ]
-#         widgets = {
-#             'name': forms.TextInput(attrs={
-#                 'class': 'form-control',
-#                 'placeholder': 'Rule name'
-#             }),
-#             'description': forms.Textarea(attrs={
-#                 'class': 'form-control',
-#                 'rows': 3,
-#                 'placeholder': 'Description of what this rule does'
-#             }),
-#             'rule_type': forms.Select(attrs={
-#                 'class': 'form-control'
-#             }),
-#             'is_active': forms.CheckboxInput(attrs={
-#                 'class': 'form-check-input'
-#             }),
-#             'parameters': forms.Textarea(attrs={
-#                 'class': 'form-control',
-#                 'rows': 4,
-#                 'placeholder': 'JSON parameters for the rule'
-#             })
-#         }
-
-#     def clean_parameters(self):
-#         parameters = self.cleaned_data.get('parameters')
-#         if parameters:
-#             try:
-#                 import json
-#                 json.loads(parameters)
-#             except json.JSONDecodeError:
-#                 raise forms.ValidationError('Parameters must be valid JSON.')
-#         return parameters
-
-
-# class BulkBookingForm(forms.Form):
-#     """Form for creating multiple bookings at once"""
-    
-#     room = forms.ModelChoiceField(
-#         queryset=Room.objects.filter(is_available=True),
-#         widget=forms.Select(attrs={
-#             'class': 'form-control'
-#         })
-#     )
-    
-#     start_date = forms.DateField(
-#         widget=forms.DateInput(attrs={
-#             'class': 'form-control',
-#             'type': 'date'
-#         })
-#     )
-    
-#     end_date = forms.DateField(
-#         widget=forms.DateInput(attrs={
-#             'class': 'form-control',
-#             'type': 'date'
-#         })
-#     )
-    
-#     days_of_week = forms.MultipleChoiceField(
-#         choices=[
-#             ('0', 'Monday'),
-#             ('1', 'Tuesday'),
-#             ('2', 'Wednesday'),
-#             ('3', 'Thursday'),
-#             ('4', 'Friday'),
-#             ('5', 'Saturday'),
-#             ('6', 'Sunday'),
-#         ],
-#         widget=forms.CheckboxSelectMultiple(),
-#         required=True
-#     )
-    
-#     start_time = forms.TimeField(
-#         widget=forms.TimeInput(attrs={
-#             'class': 'form-control',
-#             'type': 'time'
-#         })
-#     )
-    
-#     end_time = forms.TimeField(
-#         widget=forms.TimeInput(attrs={
-#             'class': 'form-control',
-#             'type': 'time'
-#         })
-#     )
-    
-#     purpose = forms.CharField(
-#         widget=forms.TextInput(attrs={
-#             'class': 'form-control',
-#             'placeholder': 'Meeting purpose'
-#         })
-#     )
-    
-#     attendees = forms.IntegerField(
-#         widget=forms.NumberInput(attrs={
-#             'class': 'form-control',
-#             'min': '1',
-#             'placeholder': 'Number of attendees'
-#         })
-#     )
-
-#     def clean(self):
-#         cleaned_data = super().clean()
-#         start_date = cleaned_data.get('start_date')
-#         end_date = cleaned_data.get('end_date')
-#         start_time = cleaned_data.get('start_time')
-#         end_time = cleaned_data.get('end_time')
-#         room = cleaned_data.get('room')
-#         attendees = cleaned_data.get('attendees')
-        
-
 
     
-
 class AdminBookingForm(forms.ModelForm):
     """Form for admin to create/edit bookings"""
     class Meta:
@@ -596,7 +540,7 @@ class AdminBookingForm(forms.ModelForm):
             # Check for conflicts (exclude current booking if editing)
             conflicts = Booking.objects.filter(
                 room=room,
-                status__in=['pending', 'confirmed'],
+                    status__in=['confirmed'],
                 start_time__lt=end_time,
                 end_time__gt=start_time
             )
@@ -614,22 +558,23 @@ class AnnouncementForm(forms.ModelForm):
     """Form for creating/editing announcements"""
     class Meta:
         model = Announcement
-        fields = ['title', 'content', 'announcement_type', 'is_active', 'expires_at']
+        fields = ['title', 'content', 'announcement_type', 'priority', 'is_active', 'show_until']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter announcement title'}),
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Enter announcement content'}),
             'announcement_type': forms.Select(attrs={'class': 'form-control'}),
+            'priority': forms.Select(attrs={'class': 'form-control'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'expires_at': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+            'show_until': forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
         }
     
-    def clean_expires_at(self):
-        expires_at = self.cleaned_data.get('expires_at')
-        if expires_at:
+    def clean_show_until(self):
+        show_until = self.cleaned_data.get('show_until')
+        if show_until:
             from django.utils import timezone
-            if expires_at <= timezone.now():
-                raise forms.ValidationError("Expiration date must be in the future.")
-        return expires_at
+            if show_until <= timezone.now():
+                raise forms.ValidationError("Show until date must be in the future.")
+        return show_until
 
 class BulkRoomActionForm(forms.Form):
     """Form for bulk room actions"""

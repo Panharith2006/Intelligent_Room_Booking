@@ -7,6 +7,8 @@
     <title>User Management | RUPP Room Booking System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_header.css' %}">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/user_management.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/responsive.css' %}">
 </head>
@@ -28,120 +30,147 @@
 
     <!-- Main Content -->
     <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-users"></i> User Management</h2>
-        </div>
-
-        <!-- Search and Filter Section -->
-        <div class="search-section">
-            <form method="get" class="filter-section">
-                <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Search users..." value="{{ search_query }}">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-                
-                <select name="role" class="form-select">
-                    <option value="">All Roles</option>
-                    <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
-                    <option value="staff" {% if selected_role == 'staff' %}selected{% endif %}>Staff</option>
-                    <option value="user" {% if selected_role == 'user' %}selected{% endif %}>User</option>
-                </select>
-                
-                <select name="active" class="form-select">
-                    <option value="">All Status</option>
-                    <option value="true" {% if selected_active == 'true' %}selected{% endif %}>Active</option>
-                    <option value="false" {% if selected_active == 'false' %}selected{% endif %}>Inactive</option>
-                </select>
-                
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Filter
-                </button>
-                
-                <a href="{% url 'booking:admin_user_management' %}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Clear
-                </a>
-            </form>
-        </div>
-
-        <!-- Users Table -->
-        <div class="users-table">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Email</th>
-                        <th>Student ID</th>
-                        <th>Role</th>
-                        <th>Status</th>
-                        <th>Join Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user_obj in users %}
-                        <tr>
-                            <td>
-                                <div class="user-info">
-                                    <div class="user-avatar">
-                                        {{ user_obj.first_name.0|default:user_obj.email.0|upper }}
-                                    </div>
-                                    <div class="user-details">
-                                        <h6>{{ user_obj.get_full_name|default:user_obj.email }}</h6>
-                                        <small>{{ user_obj.faculty|default:"N/A" }}</small>
-                                    </div>
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="card shadow mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-users me-2"></i>User Management</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Search and Filter Section -->
+                        <form method="get" class="row g-3 align-items-end mb-4">
+                            <div class="col-md-4">
+                                <label for="search" class="form-label">Search</label>
+                                <div class="input-group">
+                                    <input type="text" id="search" name="search" class="form-control" placeholder="Search users..." value="{{ search_query }}">
+                                    <button class="btn btn-outline-secondary" type="submit">
+                                        <i class="fas fa-search"></i>
+                                    </button>
                                 </div>
-                            </td>
-                            <td>{{ user_obj.email }}</td>
-                            <td>{{ user_obj.student_id|default:"N/A" }}</td>
-                            <td>
-                                {% if user_obj.is_admin %}
-                                    <span class="badge badge-primary">Admin</span>
-                                {% elif user_obj.is_staff %}
-                                    <span class="badge badge-warning">Staff</span>
-                                {% else %}
-                                    <span class="badge badge-secondary">User</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if user_obj.is_active %}
-                                    <span class="badge badge-success">Active</span>
-                                {% else %}
-                                    <span class="badge badge-danger">Inactive</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ user_obj.date_joined|date:"M d, Y" }}</td>
-                            <td>
-                                <!-- Navigate to dedicated pages with pre-selected user -->
-                                {% if user_obj.is_active %}
-                                    <a href="{% url 'accounts:deactivate_user' %}?user_email={{ user_obj.email }}" 
-                                       class="btn btn-sm btn-warning btn-action">
-                                        <i class="fas fa-user-slash"></i> Deactivate
-                                    </a>
-                                {% else %}
-                                    <a href="{% url 'accounts:deactivate_user' %}?user_email={{ user_obj.email }}" 
-                                       class="btn btn-sm btn-success btn-action">
-                                        <i class="fas fa-user-check"></i> Activate
-                                    </a>
-                                {% endif %}
-                                
-                                <a href="{% url 'accounts:all_bookings' %}?user={{ user_obj.id }}" 
-                                   class="btn btn-sm btn-info btn-action">
-                                    <i class="fas fa-calendar-alt"></i> Bookings
+                            </div>
+                            <div class="col-md-3">
+                                <label for="role" class="form-label">Role</label>
+                                <select id="role" name="role" class="form-select">
+                                    <option value="">All Roles</option>
+                                    <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
+                                    <option value="staff" {% if selected_role == 'staff' %}selected{% endif %}>Staff</option>
+                                    <option value="user" {% if selected_role == 'user' %}selected{% endif %}>User</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="active" class="form-label">Status</label>
+                                <select id="active" name="active" class="form-select">
+                                    <option value="">All Status</option>
+                                    <option value="true" {% if selected_active == 'true' %}selected{% endif %}>Active</option>
+                                    <option value="false" {% if selected_active == 'false' %}selected{% endif %}>Inactive</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex gap-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                                <a href="{% url 'booking:admin_user_management' %}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-times"></i> Clear
                                 </a>
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center">
-                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                                <p class="text-muted">No users found</p>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                            </div>
+                        </form>
+                        <!-- Users Table -->
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>User</th>
+                                        <th>Email</th>
+                                        <th>Student ID</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Join Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user_obj in users %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-circle me-2">
+                                                        {{ user_obj.first_name.0|default:user_obj.email.0|upper }}
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ user_obj.get_full_name|default:user_obj.email }}</div>
+                                                        <small class="text-muted">{{ user_obj.faculty|default:"N/A" }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ user_obj.email }}</td>
+                                            <td>{{ user_obj.student_id|default:"N/A" }}</td>
+                                            <td>
+                                    {% for user_obj in users %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    {% if user_obj.profile_picture %}
+                                                        <img src="{{ user_obj.profile_picture.url }}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+                                                    {% else %}
+                                                        <img src="{% static 'AdminPage/images/default-profile.png' %}" alt="Profile" class="rounded-circle me-2" width="40" height="40">
+                                                    {% endif %}
+                                                    <span>{{ user_obj.first_name }} {{ user_obj.last_name }}</span>
+                                                </div>
+                                            </td>
+                                            <td>{{ user_obj.email }}</td>
+                                            <td>{{ user_obj.student_id|default:"N/A" }}</td>
+                                            <td>
+                                                {% if user_obj.is_superuser or user_obj.is_admin %}
+                                                    <span class="badge bg-primary">Admin</span>
+                                                {% elif user_obj.is_staff %}
+                                                    <span class="badge bg-info">Staff</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">User</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if user_obj.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ user_obj.date_joined|date:"M d, Y" }}</td>
+                                            <td>
+                                                <a href="{% url 'accounts:deactivate_user' %}?user_email={{ user_obj.email }}" class="btn btn-sm btn-warning btn-action" title="Deactivate User">
+                                                    <i class="fas fa-user-slash"></i>
+                                                </a>
+                                                <a href="{% url 'accounts:all_bookings' %}?user={{ user_obj.id }}" class="btn btn-sm btn-info btn-action" title="View Bookings">
+                                                    <i class="fas fa-calendar-alt"></i>
+                                                </a>
+                                                <a href="mailto:{{ user_obj.email }}" class="btn btn-sm btn-secondary btn-action" title="Email User">
+                                                    <i class="fas fa-envelope"></i>
+                                                </a>
+                                                {% if user_obj.room_id %}
+                                                    <a href="{% url 'accounts:admin_room_detail' user_obj.room_id %}" class="btn btn-sm btn-primary btn-action" title="View Room">
+                                                        <i class="fas fa-door-open"></i> Room
+                                                    </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="7" class="text-center py-4">
+                                                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                                <p class="text-muted">No users found</p>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                                <p class="text-muted">No users found</p>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Pagination -->

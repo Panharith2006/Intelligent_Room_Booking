@@ -138,6 +138,15 @@
                 </div>
             {% endif %}
             
+            <div class="room-image-section mb-4">
+                <h5><i class="fas fa-image"></i> Room Image</h5>
+                {% if room.image %}
+                    <div style="background-image: url('{{ room.image.url }}'); width: 100%; height: 200px; background-size: cover; background-position: center; border-radius: 8px; border: 2px solid #ddd; margin-top: 10px;"></div>
+                {% else %}
+                    <div style="background-image: url('{% static 'images/default-room.png' %}'); width: 100%; height: 200px; background-size: cover; background-position: center; border-radius: 8px; border: 2px solid #ddd; margin-top: 10px;"></div>
+                {% endif %}
+            </div>
+            
             <div class="room-info">
                 <h5><i class="fas fa-door-open"></i> Room Information</h5>
                 <div class="room-detail">

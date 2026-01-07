@@ -196,9 +196,9 @@
                                     Date
                                 </div>
                                 <div class="detail-value">
-                                    {{ booking.date|date:"F j, Y" }}
+                                    {{ booking.start_time|date:"F j, Y" }}
                                     <br>
-                                    <small class="text-muted">{{ booking.date|date:"l" }}</small>
+                                    <small class="text-muted">{{ booking.start_time|date:"l" }}</small>
                                 </div>
                             </div>
 
@@ -279,24 +279,7 @@
                                     <i class="fas fa-arrow-left me-2"></i>Back to Bookings
                                 </a>
                                 <div>
-                                    {% if booking.status == 'pending' %}
-                                        <form method="post" action="{% url 'accounts:all_bookings' %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="approve">
-                                            <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                            <button type="submit" class="btn btn-success me-2" onclick="return confirm('Are you sure you want to approve this booking?')">
-                                                <i class="fas fa-check me-2"></i>Approve
-                                            </button>
-                                        </form>
-                                        <form method="post" action="{% url 'accounts:all_bookings' %}" class="d-inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="reject">
-                                            <input type="hidden" name="booking_id" value="{{ booking.id }}">
-                                            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to reject this booking?')">
-                                                <i class="fas fa-times me-2"></i>Reject
-                                            </button>
-                                        </form>
-                                    {% elif booking.status == 'confirmed' %}
+                                    {% if booking.status == 'confirmed' %}
                                         <form method="post" action="{% url 'accounts:all_bookings' %}" class="d-inline">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="cancel">

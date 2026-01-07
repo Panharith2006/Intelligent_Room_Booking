@@ -13,22 +13,21 @@ class CustomUserAdmin(UserAdmin):
         'username', 
         'email', 
         'get_full_name', 
-        'user_type',  # Changed from 'is_admin'
+        'user_type',  
         'is_approved', 
         'is_active', 
         'date_joined'
     )
     
     list_filter = (
-        'user_type',  # Changed from 'is_admin'
+        'user_type',  
         'is_approved', 
         'is_active', 
-        'is_staff', 
         'is_superuser',
         'date_joined'
     )
     
-    search_fields = ('username', 'email', 'first_name', 'last_name', 'student_id', 'employee_id')
+    search_fields = ('username', 'email', 'first_name', 'last_name', 'student_id')
     
     readonly_fields = ('date_joined', 'last_login', 'created_at', 'updated_at')
     
@@ -38,7 +37,6 @@ class CustomUserAdmin(UserAdmin):
             'fields': (
                 'user_type', 
                 'student_id', 
-                'employee_id', 
                 'phone_number', 
                 'department',
                 'is_approved',
@@ -56,7 +54,6 @@ class CustomUserAdmin(UserAdmin):
             'fields': (
                 'user_type', 
                 'student_id', 
-                'employee_id', 
                 'phone_number', 
                 'department',
                 'is_approved'
@@ -71,30 +68,37 @@ class CustomUserAdmin(UserAdmin):
 class RoomAdmin(admin.ModelAdmin):
     """Admin configuration for Room"""
     
+    def room_image_thumb(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="height:48px; width:auto; border-radius:6px; object-fit:cover;" />', obj.image.url)
+        return format_html('<span style="color:#888;">No image</span>')
+    room_image_thumb.short_description = 'Image'
+
     list_display = (
-        'name', 
-        'room_number', 
-        'room_type', 
-        'capacity', 
+        'room_image_thumb',
+        'name',
+        'room_number',
+        'room_type',
+        'capacity',
         'availability_status',
         'is_available',
         'is_bookable_status'
     )
-    
+
     list_filter = (
-        'room_type', 
-        'availability_status', 
+        'room_type',
+        'availability_status',
         'is_available',
         'created_at'
     )
-    
+
     search_fields = ('name', 'room_number', 'description')
-    
+
     readonly_fields = ('created_at', 'updated_at')
-    
+
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'room_number', 'room_type', 'capacity')
+            'fields': ('name', 'room_number', 'room_type', 'capacity', 'image')
         }),
         ('Details', {
             'fields': ('description', 'equipment')
@@ -199,8 +203,6 @@ class BookingRuleAdmin(admin.ModelAdmin):
         'max_duration_hours',
         "daily_booking_limit",
         "weekly_booking_limit",
-        # 'max_daily_bookings',
-        # 'max_weekly_bookings',
         'max_advance_days',
         'is_active'
     )
@@ -291,7 +293,7 @@ class AnnouncementAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         """Auto-set created_by field"""
-        if not change:  # Only set when creating new announcement
+        if not change: 
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
 

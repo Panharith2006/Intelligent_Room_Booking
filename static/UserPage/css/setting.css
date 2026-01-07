@@ -255,10 +255,10 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--dark-gray);
-    padding: 0.5rem;
-    background: var(--light-gray);
-    border-radius: var(--border-radius);
+    color: #555555;
+    padding: 0;
+    background: none;
+    border: none;
 }
 
 .stat-item i {

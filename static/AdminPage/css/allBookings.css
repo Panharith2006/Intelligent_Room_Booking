@@ -1,7 +1,25 @@
-/* Enhanced All Bookings Page Styling */
-/* !important tags added to ensure styles are applied */
+/* Scrollable Bookings Table */
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
 
-/* Header Styles */
+/* Custom scrollbar for better UX */
+.table-responsive::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #e0e0e0;
+    border-radius: 8px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: #f8f9fa;
+    border-radius: 8px;
+}
 .header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;

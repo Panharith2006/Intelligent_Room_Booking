@@ -7,131 +7,14 @@
     <title>View Rooms | RUPP Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_header.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/manageRooms.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/viewRooms.css' %}">
     <link rel="stylesheet" href="{% static 'AdminPage/css/responsive.css' %}">
-    <style>
-        /* Additional custom styles for view rooms */
-        .main-content {
-            margin-top: 20px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: none;
-            transition: all 0.3s ease;
-            padding: 1.5rem;
-        }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-        
-        .stat-label {
-            color: #6c757d;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .room-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: none;
-            transition: all 0.3s ease;
-            margin-bottom: 1.5rem;
-        }
-        
-        .room-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
-        }
-        
-        .room-image {
-            height: 200px;
-            border-radius: 12px 12px 0 0;
-            position: relative;
-            overflow: hidden;
-            background: none;
-        }
-        .room-image::before {
-            display: none;
-        }
-        .room-image i {
-            display: none;
-        }
-        
-        .availability-badge {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            z-index: 10;
-        }
-        
-        .filters-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            border: none;
-            margin-bottom: 2rem;
-        }
-        
-        .btn-outline-primary {
-            border-color: #667eea;
-            color: #667eea;
-        }
-        
-        .btn-outline-primary:hover {
-            background-color: #667eea;
-            border-color: #667eea;
-        }
-        
-        .table-responsive {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        }
-        
-        .table th {
-            background: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: 600;
-            color: #495057;
-            padding: 1rem;
-        }
-        
-        .table td {
-            padding: 1rem;
-            vertical-align: middle;
-        }
-        
-        .card {
-            border-radius: 12px !important;
-            padding: 1.5rem !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
-            margin-bottom: 2rem !important;
-        }
-    </style>
 </head>
 <body>
+
     <!-- Header -->
     {% include 'AdminPage/includes/admin_header.html' %}
 
@@ -166,89 +49,54 @@
                     <div class="stat-label">Available Rooms</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number text-warning">{{ occupied_rooms|default:0 }}</div>
-                    <div class="stat-label">Occupied Rooms</div>
+                    <div class="stat-number text-danger">{{ unavailable_rooms|default:0 }}</div>
+                    <div class="stat-label">Unavailable Rooms</div>
                 </div>
     
             </div>
 
-            {% comment %} <!-- Filters -->
-            <div class="card filters-card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-filter me-2"></i>Filter Rooms
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form method="GET" class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">Room Type</label>
-                            <select name="room_type" class="form-select">
-                                <option value="">All Types</option>
-                                <option value="conference" {% if request.GET.room_type == 'conference' %}selected{% endif %}>Conference Room</option>
-                                <option value="classroom" {% if request.GET.room_type == 'classroom' %}selected{% endif %}>Classroom</option>
-                                <option value="auditorium" {% if request.GET.room_type == 'auditorium' %}selected{% endif %}>Auditorium</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Capacity</label>
-                            <select name="capacity" class="form-select">
-                                <option value="">All Capacities</option>
-                                <option value="small" {% if request.GET.capacity == 'small' %}selected{% endif %}>Small (1-20)</option>
-                                <option value="medium" {% if request.GET.capacity == 'medium' %}selected{% endif %}>Medium (21-50)</option>
-                                <option value="large" {% if request.GET.capacity == 'large' %}selected{% endif %}>Large (51+)</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Status</label>
-                            <select name="status" class="form-select">
-                                <option value="">All Status</option>
-                                <option value="available" {% if request.GET.status == 'available' %}selected{% endif %}>Available</option>
-                                <option value="occupied" {% if request.GET.status == 'occupied' %}selected{% endif %}>Occupied</option>
-                                <option value="maintenance" {% if request.GET.status == 'maintenance' %}selected{% endif %}>Under Maintenance</option>
-                            </select>
-                        </div>
-                        <div class="col-12">
-                            <button type="submit" class="btn btn-primary me-2">
-                                <i class="fas fa-search me-2"></i>Filter
-                            </button>
-                            <a href="{% url 'accounts:admin_view_rooms' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-2"></i>Clear
-                            </a>
-                        </div> {% endcomment %}
-                    {% comment %} </form>
-                </div>
-            </div> {% endcomment %}
-
-            <!-- Rooms Grid View -->
+            
             <div class="row">
                 {% for room in rooms %}
                     <div class="col-lg-4 col-md-6 mb-4">
                         <div class="room-card">
-                            <div class="room-image" style="background-image: url('{{ room.image_url|default:'/static/images/desk_and_chairs_are_installed_beforePCarrived1.jpg' }}'); height: 200px; border-radius: 12px 12px 0 0; position: relative; overflow: hidden; background-size: cover; background-position: center;">
-                                <span class="availability-badge">
-                                    {% if room.is_available %}
-                                        <span class="badge bg-success">Available</span>
-                                    {% else %}
-                                        <span class="badge bg-danger">Unavailable</span>
-                                    {% endif %}
+                            <div class="room-card-header">
+                                <span class="availability-badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
+                                    {% if room.is_available %}AVAILABLE{% else %}UNAVAILABLE{% endif %}
                                 </span>
+                                {% if room.image %}
+                                    <div class="room-image" style="background-image: url('{{ room.image.url }}');"></div>
+                                {% else %}
+                                    <div class="room-no-image" style="height: 110px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; border-radius: 16px 16px 0 0;">
+                                        <div class="text-center text-muted">
+                                            <i class="fas fa-image fa-2x mb-1"></i>
+                                            <p class="mb-0 small">No image</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="card-body">
-                                <h5 class="card-title">{{ room.name }}</h5>
-                                <p class="text-muted mb-2">
-                                    <i class="fas fa-hashtag me-2"></i>{{ room.room_number }}
-                                </p>
-                                <p class="text-muted mb-2">
-                                    <i class="fas fa-users me-2"></i>Capacity: {{ room.capacity }} people
-                                </p>
-                                <p class="text-muted mb-3">
-                                    <i class="fas fa-building me-2"></i>{{ room.get_room_type_display }}
-                                </p>
-                                {% if room.description %}
-                                    <p class="card-text">{{ room.description|truncatewords:15 }}</p>
-                                {% endif %}
-                                <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h5 class="card-title">{{ room.name }}</h5>
+                                    <p class="text-muted mb-2">
+                                        <i class="fas fa-hashtag me-2"></i>{{ room.room_number }}
+                                    </p>
+                                    <p class="text-muted mb-2">
+                                        <i class="fas fa-users me-2"></i>Capacity: {{ room.capacity }} people
+                                    </p>
+                                    <p class="text-muted mb-3">
+                                        <i class="fas fa-building me-2"></i>{{ room.get_room_type_display }}
+                                    </p>
+                                    {% if room.description %}
+                                        <p class="card-text">{{ room.description|truncatewords:15 }}</p>
+                                    {% endif %}
+                                    {% if room.equipment %}
+                                        <p class="text-muted small">
+                                            <i class="fas fa-tools me-2"></i>{{ room.equipment|truncatewords:10 }}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                                <div class="d-flex justify-content-end align-items-center mt-2">
                                     <a href="{% url 'accounts:admin_room_detail' room.id %}" class="btn btn-outline-primary btn-sm">
                                         <i class="fas fa-eye me-1"></i>View Details
                                     </a>
@@ -269,76 +117,6 @@
                 {% endfor %}
             </div>
 
-            <!-- Table View (Alternative) -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="fas fa-table me-2"></i>Rooms Table
-                    </h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Room Name</th>
-                                    <th>Room Number</th>
-                                    <th>Type</th>
-                                    <th>Capacity</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for room in rooms %}
-                                    <tr>
-                                        <td>
-                                            <div class="fw-medium">{{ room.name }}</div>
-                                            {% if room.description %}
-                                                <small class="text-muted">{{ room.description|truncatewords:10 }}</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ room.room_number }}</td>
-                                        <td>{{ room.get_room_type_display }}</td>
-                                        <td>
-                                            <i class="fas fa-users me-1"></i>{{ room.capacity }}
-                                        </td>
-                                        <td>
-                                            {% if room.is_available %}
-                                                <span class="badge bg-success">Available</span>
-                                            {% else %}
-                                                <span class="badge bg-danger">Unavailable</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{% url 'accounts:admin_room_detail' room.id %}" class="btn btn-outline-primary">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                <a href="{% url 'accounts:admin_edit_room' room.id %}" class="btn btn-outline-secondary">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                                <a href="{% url 'accounts:admin_delete_room' room.id %}" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to delete this room?')">
-                                                    <i class="fas fa-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% empty %}
-                                    <tr>
-                                        <td colspan="6" class="text-center py-4">
-                                            <div class="text-muted">
-                                                <i class="fas fa-door-open fa-3x mb-3"></i>
-                                                <p>No rooms found</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
             </div>

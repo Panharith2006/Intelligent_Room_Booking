@@ -1,6 +1,0 @@
-{
-  "deploy": {
-    "startCommand": "python manage.py collectstatic --noinput && python manage.py migrate && gunicorn room_booking_system.wsgi:application",
-    "healthcheckPath": "/accounts/login/"
-  }
-}

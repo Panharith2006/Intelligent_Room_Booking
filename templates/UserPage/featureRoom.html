@@ -5,8 +5,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Royal University of Phnom Penh - Room Booking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'UserPage/css/featureRoom.css' %}">
+    <!-- Responsive CSS for mobile optimization -->
+    <link rel="stylesheet" href="{% static 'UserPage/css/responsive.css' %}">
+    <link rel="stylesheet" href="{% static 'UserPage/css/featureRoom-inline.css' %}">
     <script src="{% static 'UserPage/js/featureRoom.js' %}" defer></script>
 </head>
 <body>
@@ -24,6 +28,7 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
@@ -34,9 +39,51 @@
             <p>Find and book the perfect room for your needs</p>
         </div>
     </section>
-
+    <!-- Booking Schedule Feature (NEW) -->
+    <div class="schedule-feature" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 2.5rem 0 2.5rem 0;">
+        <div style="background: rgba(255,255,255,0.7); border-radius: 18px; box-shadow: 0 8px 32px rgba(102,126,234,0.13); padding: 2.2rem 2rem 1.5rem 2rem; max-width: 400px; width: 100%; text-align: center; position: relative; border: 1.5px solid #e0e7ff;">
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <div style="background: linear-gradient(135deg,#667eea,#4a90e2); border-radius: 50%; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(102,126,234,0.18); margin-bottom: 1rem;">
+                    <i class="bi bi-calendar-week" style="font-size:2.5rem; color:#fff; filter:drop-shadow(0 2px 6px rgba(102,126,234,0.18));"></i>
+                </div>
+                <div style="font-size: 1.25rem; font-weight: 700; color: #334155; margin-bottom: 0.5rem; letter-spacing: 0.01em;">Booking Calendar</div>
+                <div style="font-size: 1rem; color: #4a5568; margin-bottom: 1.2rem;">View all available rooms and book instantly with our interactive calendar. See your bookings, check availability, and plan ahead!</div>
+                <a href="{% url 'accounts:room_schedule' %}" class="book-calendar-btn" style="display:inline-block; background: linear-gradient(90deg,#667eea,#4a90e2); color: #fff; font-weight: 600; border-radius: 8px; padding: 12px 32px; font-size: 1.1em; box-shadow: 0 2px 8px rgba(102,126,234,0.10); text-decoration: none; transition: background 0.2s;">
+                    <i class="bi bi-calendar-plus" style="margin-right:8px;"></i>View Now
+                </a>
+            </div>
+        </div>
+    </div>
     <!-- Main Content -->
     <main class="container">
+        <!-- Announcements Section -->
+        {% if announcements %}
+        <div class="announcements-section mb-4">
+            <h3 class="section-title"><i class="bi bi-megaphone"></i> Important Announcements</h3>
+            {% for announcement in announcements %}
+            <div class="alert alert-{% if announcement.priority == 'urgent' %}danger{% elif announcement.priority == 'high' %}warning{% elif announcement.priority == 'normal' %}primary{% else %}info{% endif %} alert-dismissible fade show" role="alert">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h6 class="alert-heading mb-1">
+                            <i class="bi bi-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle-fill{% elif announcement.announcement_type == 'maintenance' %}tools{% elif announcement.announcement_type == 'event' %}calendar-event{% else %}info-circle{% endif %}"></i>
+                            {{ announcement.title }}
+                        </h6>
+                        <p class="mb-1">{{ announcement.content }}</p>
+                        <small class="text-muted">
+                            <strong>{{ announcement.get_announcement_type_display }}</strong> • 
+                            {{ announcement.created_at|date:"M d, Y" }}
+                            {% if announcement.show_until %}
+                                • Show until {{ announcement.show_until|date:"M d, Y H:i" }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
         <h2 class="section-title">Featured Rooms</h2>
         
         <!-- Search and Filter -->
@@ -62,14 +109,14 @@
                         <option value="51+">51+ people</option>
                     </select>
                 </div>
-                <div class="filter-group">
+                {% comment %} <div class="filter-group">
                     <label for="date">Date</label>
                     <input type="date" id="date">
                 </div>
                 <div class="filter-group">
                     <label for="time">Time</label>
                     <input type="time" id="time">
-                </div>
+                </div> {% endcomment %}
             </div>
             <div class="button-group">
                 <button class="search-btn" onclick="searchRooms()">
@@ -106,13 +153,17 @@
                 <!-- Room details will be populated here -->
             </div>
             <div class="modal-footer">
-                <button class="book-now-btn" onclick="proceedToBooking()">
+                <button id="modalBookBtn" class="book-now-btn" onclick="proceedToBooking()">
                     <i class="bi bi-calendar-check"></i> Book This Room
                 </button>
                 <button class="close-btn" onclick="closeModal()">Cancel</button>
             </div>
         </div>
     </div>
+
+
+    <!-- Booking Schedule Feature (NEW) -->
+    <!-- Removed duplicate calendar button for cleaner look -->
 
     <!-- Campus Map Section -->
     <div class="map-container" id="map-section">
@@ -133,35 +184,10 @@
         </div>
     </div>
 
-    <!-- Statistics Section -->
-    <div class="stats-section">
-        <div class="container">
-            <h2>Room Booking Statistics</h2>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">🏢</div>
-                    <div class="stat-number">{{ total_rooms|default:"50" }}</div>
-                    <div class="stat-label">Total Rooms</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-number">{{ available_rooms|default:"42" }}</div>
-                    <div class="stat-label">Available Now</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📅</div>
-                    <div class="stat-number">{{ total_bookings|default:"1,250" }}</div>
-                    <div class="stat-label">Total Bookings</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">👥</div>
-                    <div class="stat-number">{{ active_users|default:"850" }}</div>
-                    <div class="stat-label">Active Users</div>
-                </div>
-            </div>
-        </div>
-    </div>
 
+    
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'UserPage/js/featureRoom.js' %}"></script>
     <script>
         // ✅ Room data from Django backend (real database data)
@@ -170,10 +196,12 @@
             {
                 id: {{ room.id }},
                 name: "{{ room.name|escapejs }}",
-                location: "{{ room.location|escapejs }}",
+                location: "{{ room.location|default_if_none:''|escapejs }}",
                 capacity: {{ room.capacity }},
-                type: "{{ room.type }}",
-                features: {{ room.features|safe }},
+                type: "{{ room.room_type|default_if_none:''|escapejs }}",
+                equipment: "{{ room.equipment|default_if_none:''|escapejs }}",
+                facilities: "{{ room.facilities|default_if_none:''|escapejs }}",
+                features: {% if room.equipment %}"{{ room.equipment|escapejs }}".split(', '){% else %}[]{% endif %},
                 available: {{ room.available|yesno:"true,false" }},
                 description: "{{ room.description|escapejs }}",
                 imageUrl: "{{ room.image_url|escapejs }}",
@@ -187,10 +215,12 @@
                 location: "Please contact admin",
                 capacity: 0,
                 type: "other",
+                equipment: "",
+                facilities: "",
                 features: [],
                 available: false,
                 description: "No rooms are currently available. Please contact the administrator.",
-                imageUrl: "/static/images/default-room.jpg",
+                imageUrl: "",
                 room_number: "N/A"
             }
             {% endfor %}
@@ -216,32 +246,51 @@
             roomsToShow.forEach(room => {
                 const roomCard = document.createElement('div');
                 roomCard.className = 'room-card';
+                roomCard.style = 'box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 12px; background: #fff; overflow: hidden; margin-bottom: 12px;';
+                // Extract building name robustly from location
+                let buildingName = room.location;
+                // Try to match 'Building X' or 'Bldg X' or just first word if not present
+                let match = buildingName.match(/(Building|Bldg)\s*[A-Za-z0-9]+/i);
+                if (match) {
+                    buildingName = match[0];
+                } else {
+                    // fallback: take first word or phrase before comma
+                    buildingName = buildingName.split(',')[0].trim();
+                }
                 roomCard.innerHTML = `
-                    <div class="room-image" style="background-image: url('${room.imageUrl || '/static/images/default-room.jpg'}');">
-                        <div class="room-status ${room.available ? 'available' : 'unavailable'}">
-                            ${room.available ? 'Available' : 'Unavailable'}
+                    ${room.imageUrl ? 
+                        `<div class="room-image" style="background-image: url('${room.imageUrl}'); height: 160px; border-radius: 12px 12px 0 0; position: relative;">
+                            <div class="room-status ${room.available ? 'available' : 'unavailable'}" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${room.available ? '#e0f7fa' : '#ffeaea'}; color: ${room.available ? '#0077b6' : '#c0392b'}; font-weight: 600;">${room.available ? 'Available' : 'Unavailable'}</div>
+                        </div>` :
+                        `<div class="room-no-image" style="height: 160px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; border-radius: 12px 12px 0 0; position: relative; border-bottom: 1px solid #dee2e6;">
+                            <div class="text-center text-muted">
+                                <i class="fas fa-image fa-2x mb-2"></i>
+                                <p class="mb-0">No image</p>
+                            </div>
+                            <div class="room-status ${room.available ? 'available' : 'unavailable'}" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${room.available ? '#e0f7fa' : '#ffeaea'}; color: ${room.available ? '#0077b6' : '#c0392b'}; font-weight: 600;">${room.available ? 'Available' : 'Unavailable'}</div>
+                        </div>`
+                    }
+                    <div class="room-info" style="padding: 16px;">
+                        <h3 class="room-title" style="font-size: 1.25em; font-weight: 700; color: #2d3748; margin-bottom: 4px;">
+                            ${room.name}
+                            <span style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
+                                <span class="building-logo" style="display: inline-flex; align-items: center; color: #667eea; font-size: 0.95em; margin-right: 4px;"><i class="bi bi-geo-alt" style="margin-right:4px;"></i></span>
+                                <span class="room-number" style="font-size: 0.95em; color: #888; font-weight: 400;">${room.room_number}</span>
+                                <span class="building-name" style="font-size: 0.95em; color: #667eea; font-weight: 500;">${buildingName}</span>
+                            </span>
+                        </h3>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; align-items: center;">
+                            <span style="color: #444;"><i class="bi bi-people"></i> ${room.capacity} people</span>
+                            <span style="color: #444;"><i class="bi bi-door-open"></i> ${room.type.charAt(0).toUpperCase() + room.type.slice(1)}</span>
                         </div>
-                    </div>
-                    <div class="room-info">
-                        <h3 class="room-title">${room.name}</h3>
-                        <p class="room-location">
-                            <i class="bi bi-geo-alt"></i> ${room.location}
-                        </p>
-                        <p class="room-capacity">
-                            <i class="bi bi-people"></i> Capacity: ${room.capacity} people
-                        </p>
-                        <div class="room-type">
-                            <i class="bi bi-door-open"></i> Type: ${room.type.charAt(0).toUpperCase() + room.type.slice(1)}
-                        </div>
-                        <div class="room-features">
-                            ${Array.isArray(room.features) ? room.features.map(feature => `<span class="feature-tag">${feature}</span>`).join('') : ''}
-                        </div>
-                        <div class="room-footer">
-                            <button class="view-details-btn" onclick="viewRoomDetails(${room.id})">
+                        <!-- Equipment/facilities removed from cards - only shown in View Details modal -->
+                        <div class="room-footer" style="display: flex; gap: 10px;">
+                            <button class="view-details-btn" onclick="viewRoomDetails(${room.id})" style="background:#f6f8fa; color:#667eea; border:none; border-radius:8px; padding:7px 16px; font-weight:600; cursor:pointer; transition:background 0.2s;">
                                 <i class="bi bi-info-circle"></i> View Details
                             </button>
                             <button class="book-btn ${room.available ? '' : 'disabled'}" 
-                                ${room.available ? `onclick="redirectToBooking(${room.id})"` : 'disabled'}>
+                                ${room.available ? `onclick=\"redirectToBooking(${room.id})\"` : 'disabled'}
+                                style="background:${room.available ? '#667eea' : '#eee'}; color:${room.available ? '#fff' : '#aaa'}; border:none; border-radius:8px; padding:7px 16px; font-weight:600; cursor:${room.available ? 'pointer' : 'not-allowed'}; transition:background 0.2s;">
                                 <i class="bi bi-calendar-check"></i>
                                 ${room.available ? 'Book Now' : 'Unavailable'}
                             </button>
@@ -258,28 +307,47 @@
                 selectedRoom = room;
                 const modal = document.getElementById('quickBookingModal');
                 const roomDetails = document.getElementById('roomDetails');
-                
+                // Extract building name robustly from location
+                let buildingName = room.location;
+                let match = buildingName.match(/(Building|Bldg)\s*[A-Za-z0-9]+/i);
+                if (match) {
+                    buildingName = match[0];
+                } else {
+                    buildingName = buildingName.split(',')[0].trim();
+                }
                 roomDetails.innerHTML = `
-                    <div class="room-detail-header">
-                        <h4>${room.name}</h4>
+                    <div class="room-detail-header" style="text-align: left;">
+                        <h4 style="text-align: left;">${room.name}</h4>
                         <span class="status-badge ${room.available ? 'available' : 'unavailable'}">
                             ${room.available ? 'Available' : 'Unavailable'}
                         </span>
                     </div>
-                    <div class="room-detail-info">
-                        <p><strong>Location:</strong> ${room.location}</p>
-                        <p><strong>Capacity:</strong> ${room.capacity} people</p>
-                        <p><strong>Type:</strong> ${room.type}</p>
-                        <p><strong>Description:</strong> ${room.description}</p>
+                    <div class="room-detail-info" style="text-align: left;">
+                        <p style="text-align: left;"><strong><i class='bi bi-geo-alt'></i> Location:</strong> ${room.room_number}</p>
+                        <p style="text-align: left;"><strong>Capacity:</strong> ${room.capacity} people</p>
+                        <p style="text-align: left;"><strong>Type:</strong> ${room.type}</p>
+                        <p style="text-align: left;"><strong>Description:</strong> ${room.description}</p>
                     </div>
-                    <div class="room-detail-features">
-                        <h5>Features:</h5>
-                        <div class="features-list">
-                            ${room.features.map(feature => `<span class="feature-item">${feature}</span>`).join('')}
+                    <div class="room-detail-features" style="text-align: left;">
+                        <h5 style="text-align: left;">Facilities & Equipment:</h5>
+                        <div class="features-list" style="text-align: left; justify-content: flex-start;">
+                            ${room.features && room.features.length > 0
+                                ? room.features.map(feature => `<span class="feature-item">${feature.trim()}</span>`).join('')
+                                : (room.equipment && room.equipment.trim() 
+                                    ? room.equipment.split(',').map(item => `<span class="feature-item">${item.trim()}</span>`).join('')
+                                    : '<span style="color:#888;font-size:0.98em;">No facilities listed</span>')}
                         </div>
                     </div>
                 `;
-                
+                // Set book button state based on availability
+                const bookBtn = document.getElementById('modalBookBtn');
+                if (room.available) {
+                    bookBtn.disabled = false;
+                    bookBtn.classList.remove('disabled');
+                } else {
+                    bookBtn.disabled = true;
+                    bookBtn.classList.add('disabled');
+                }
                 modal.style.display = 'block';
             }
         }
@@ -428,6 +496,28 @@
             // Set minimum date to today
             document.getElementById('date').min = today;
         });
+
+
+        // Booking Schedule (By Room) button logic
+        document.addEventListener('DOMContentLoaded', function() {
+            const byRoomBtn = document.getElementById('byRoomBtn');
+            if (byRoomBtn) {
+                byRoomBtn.onclick = function() {
+                    // Get selected room from filter or default to first
+                    let selectedRoomId = rooms.length > 0 ? rooms[0].id : null;
+                    if (currentRooms.length > 0) {
+                        selectedRoomId = currentRooms[0].id;
+                    }
+                    if (selectedRoomId) {
+                        window.location.href = `{% url 'accounts:room_schedule' %}?room_id=${selectedRoomId}`;
+                    } else {
+                        alert('No room selected.');
+                    }
+                };
+            }
+        });
     </script>
+    
+    {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

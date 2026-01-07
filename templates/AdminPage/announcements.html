@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Announcements | RUPP Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_header.css' %}">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
+</head>
+<body>
+    <!-- Header -->
+    {% include 'AdminPage/includes/admin_header.html' %}
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+                        <h4 class="mb-0"><i class="fas fa-bullhorn me-2"></i>Manage Announcements</h4>
+                        <a href="{% url 'booking:admin_announcement_create' %}" class="btn btn-light">
+                            <i class="fas fa-plus"></i> Create New Announcement
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        {% if announcements %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Type</th>
+                                            <th>Priority</th>
+                                            <th>Status</th>
+                                            <th>Created By</th>
+                                            <th>Created Date</th>
+                                            <th>Show Until</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for announcement in announcements %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ announcement.title }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ announcement.content|truncatechars:100 }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-info">{{ announcement.get_announcement_type_display }}</span>
+                                            </td>
+                                            <td>
+                                                {% if announcement.priority == 'urgent' %}
+                                                    <span class="badge bg-danger">{{ announcement.get_priority_display }}</span>
+                                                {% elif announcement.priority == 'high' %}
+                                                    <span class="badge bg-warning">{{ announcement.get_priority_display }}</span>
+                                                {% elif announcement.priority == 'normal' %}
+                                                    <span class="badge bg-primary">{{ announcement.get_priority_display }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ announcement.get_priority_display }}</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if announcement.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ announcement.created_by.get_full_name|default:announcement.created_by.email }}</td>
+                                            <td>{{ announcement.created_at|date:"M d, Y H:i" }}</td>
+                                            <td>
+                                                {% if announcement.show_until %}
+                                                    {{ announcement.show_until|date:"M d, Y H:i" }}
+                                                {% else %}
+                                                    <small class="text-muted">No expiry</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'booking:admin_announcement_edit' announcement.id %}" 
+                                                       class="btn btn-sm btn-outline-primary" title="Edit">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <form method="post" action="{% url 'booking:admin_announcement_toggle_active' announcement.id %}" 
+                                                          style="display: inline;">
+                                                        {% csrf_token %}
+                                                        <button type="submit" 
+                                                                class="btn btn-sm btn-outline-{% if announcement.is_active %}warning{% else %}success{% endif %}" 
+                                                                title="{% if announcement.is_active %}Deactivate{% else %}Activate{% endif %}">
+                                                            <i class="fas fa-{% if announcement.is_active %}pause{% else %}play{% endif %}"></i>
+                                                        </button>
+                                                    </form>
+                                                    <a href="{% url 'booking:admin_announcement_delete' announcement.id %}" 
+                                                       class="btn btn-sm btn-outline-danger" title="Delete"
+                                                       onclick="return confirm('Are you sure you want to delete this announcement?')">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5">
+                                <i class="fas fa-bullhorn fa-3x text-muted mb-3"></i>
+                                <h5 class="text-muted">No announcements found</h5>
+                                <p class="text-muted">Create your first announcement to communicate with users.</p>
+                                <a href="{% url 'booking:admin_announcement_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus"></i> Create First Announcement
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="footer-content">
+            <p>All Rights Reserved, Copyright © 2025 Royal University of Phnom Penh (RUPP)</p>
+            <p>Russian Federation Boulevard, Toul Kork, Phnom Penh, Cambodia. Tel: 855-972 274 936</p>
+            <p>Designed by: DSE TEAM</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

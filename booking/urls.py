@@ -1,9 +1,20 @@
 from django.urls import include, path
-from . import views, admin_views
+from . import views, admin_views, api_views
 
 app_name = 'booking'
 
 urlpatterns = [
+    # ============================================
+    # AI Chatbot API Endpoints (for Semantic Kernel)
+    # ============================================
+    path('api/rooms/', api_views.api_list_rooms, name='api_list_rooms'),
+    path('api/rooms/availability/', api_views.api_check_availability, name='api_check_availability'),
+    path('api/rooms/search/', api_views.api_search_rooms, name='api_search_rooms'),
+    path('api/bookings/', api_views.api_list_user_bookings, name='api_list_user_bookings'),
+    path('api/bookings/create/', api_views.api_create_booking, name='api_create_booking'),
+    path('api/bookings/cancel/', api_views.api_cancel_booking, name='api_cancel_booking'),
+    path('api/rules/', api_views.api_get_booking_rules, name='api_get_booking_rules'),
+    
     # Room management URLs
     path('rooms/', views.room_list, name='room_list'),
     path('rooms/<int:room_id>/', views.room_detail, name='room_detail'),
@@ -43,6 +54,11 @@ urlpatterns = [
     # Admin AJAX endpoints
     path('admin/api/room-availability/', admin_views.admin_get_room_availability, name='admin_get_room_availability'),
     path('admin/api/booking-stats/', admin_views.admin_booking_stats, name='admin_booking_stats'),
+    
+    # Admin schedule
+    path('admin/schedule/', admin_views.admin_schedule_view, name='admin_schedule'),
+    path('admin/schedule/events/', admin_views.admin_schedule_events, name='admin_schedule_events'),
+    path('admin/bookings/<int:booking_id>/quick-edit/', admin_views.admin_booking_quick_edit, name='admin_booking_quick_edit'),
 
     # User dashboard
     path('dashboard/', views.user_dashboard, name='user_dashboard'),
@@ -55,9 +71,14 @@ urlpatterns = [
     path('bookings/<int:booking_id>/modify/', views.modify_booking, name='modify_booking'),
     path('quick-book/<int:room_id>/', views.quick_book, name='quick_book'),
     path('calendar/', views.booking_calendar, name='booking_calendar'),
-    
+
     # AJAX endpoints
     path('api/check-availability/', views.check_room_availability, name='check_room_availability'),
     path('api/rooms-availability/', views.rooms_api_availability, name='rooms_api_availability'),
+    path('api/check-room-availability-ajax/', views.check_room_availability_ajax, name='check_room_availability_ajax'),
     path('check-availability/', views.check_availability, name='check_availability'),
+
+    # Booking schedule URLs
+    path('schedule/', views.booking_schedule_by_day, name='booking_schedule_by_day'),
+    path('schedule/room/<int:room_id>/', views.booking_schedule_by_room, name='booking_schedule_by_room'),
 ]

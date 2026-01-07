@@ -1,3 +1,6 @@
+{% load socialaccount %}
+{% load google_oauth_tags %}
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,290 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create Account | Royal University of Phnom Penh</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-        /* Reset and Base Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, sans-serif;
-        }
-
-        /* Main Layout */
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            min-height: 100vh;
-            background: #ffffff;
-        }
-
-        /* Branding Section */
-        .brand-section {
-            background: #c5ac0736;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .brand-section::after {
-            content: '';
-            position: absolute;
-            bottom: -50px;
-            right: -50px;
-            width: 150px;
-            height: 150px;
-            background: rgba(255, 255, 255, 0.05);
-            transform: rotate(45deg);
-        }
-
-        .university-logo {
-            width: 160px;
-            margin-bottom: 2rem;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
-        }
-
-        .university-branding {
-            text-align: center;
-            color: #ffffff;
-            max-width: 400px;
-        }
-
-        .university-name {
-            font-family: 'Georgia', serif;
-            font-size: 2.2rem;
-            line-height: 1.2;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            letter-spacing: -0.5px;
-        }
-
-        .university-motto {
-            font-size: 1.1rem;
-            opacity: 0.9;
-            font-weight: 300;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            padding-top: 1rem;
-            margin-top: 1rem;
-        }
-
-        /* Registration Section */
-        .registration-section {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        .registration-card {
-            background: #ffffff;
-            padding: 3rem;
-            border-radius: 16px;
-            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
-            width: 100%;
-            max-width: 480px;
-            transform: translateY(0);
-            transition: transform 0.3s ease;
-            margin: 2rem 0;
-        }
-
-        .registration-card:hover {
-            transform: translateY(-2px);
-        }
-
-        .registration-header {
-            margin-bottom: 2.5rem;
-            text-align: center;
-        }
-
-        .registration-title {
-            font-size: 1.8rem;
-            color: #002147;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .registration-subtitle {
-            color: #6c757d;
-            font-size: 0.95rem;
-        }
-
-        /* Form Elements */
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            color: #495057;
-            font-weight: 500;
-            font-size: 0.95rem;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.875rem;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: #002147;
-            box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.1);
-        }
-
-        .form-select {
-            width: 100%;
-            padding: 0.875rem;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            font-size: 1rem;
-            background-color: #ffffff;
-            cursor: pointer;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-select:focus {
-            outline: none;
-            border-color: #002147;
-            box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.1);
-        }
-
-        .password-requirements {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 0.25rem;
-            line-height: 1.4;
-        }
-
-        .role-description {
-            font-size: 0.8rem;
-            color: #6c757d;
-            margin-top: 0.25rem;
-            line-height: 1.4;
-        }
-
-        .create-button {
-            width: 100%;
-            padding: 1rem;
-            background: #002147;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-        }
-
-        .create-button:hover {
-            background: #00152f;
-            transform: translateY(-1px);
-        }
-
-        .secondary-actions {
-            margin-top: 1.5rem;
-            text-align: center;
-            font-size: 0.9rem;
-            color: #6c757d;
-        }
-
-        .secondary-actions a {
-            color: #002147;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-
-        .secondary-actions a:hover {
-            color: #00152f;
-        }
-
-        /* Admin role styling */
-        .admin-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            border-radius: 6px;
-            padding: 0.75rem;
-            margin-top: 0.5rem;
-            font-size: 0.85rem;
-            color: #856404;
-            display: none;
-        }
-
-        /* Error messages */
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 0.75rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            border: 1px solid #f5c6cb;
-        }
-
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 0.75rem;
-            border-radius: 4px;
-            margin-bottom: 1rem;
-            border: 1px solid #c3e6cb;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-
-            .brand-section {
-                padding: 4rem 2rem;
-            }
-
-            .university-name {
-                font-size: 1.8rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-                gap: 0;
-            }
-
-            .registration-card {
-                padding: 2rem;
-            }
-        }
-
-        @media (max-width: 576px) {
-            .university-name {
-                font-size: 1.5rem;
-            }
-
-            .registration-section {
-                padding: 1rem;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'SignIn-RegisterPage/css/register.css' %}">
 </head>
 <body>
     <div class="container">
@@ -307,6 +27,22 @@
                 <div class="registration-header">
                     <h2 class="registration-title">Create Account</h2>
                     <p class="registration-subtitle">Join the RUPP community</p>
+                    <div class="d-grid gap-2 my-3">
+                        {% google_oauth_configured as google_configured %}
+                        {% if google_configured %}
+                            {% safe_google_signup_url as google_signup_url %}
+                            <a href="{{ google_signup_url }}" class="google-login-btn" style="margin-bottom: 20px; display:flex;align-items:center;justify-content:center;gap:10px;" id="google-signup-btn">
+                                <svg class="google-icon" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Sign up with Google
+                            </a>
+                        {% endif %}
+                    </div>
+                    
                 </div>
                 
                 <!-- Django Messages -->
@@ -376,46 +112,7 @@
 
                     <!-- Faculty and Department -->
                     <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="faculty">Faculty</label>
-                            <select id="faculty" name="faculty" class="form-select">
-                                <option value="">Select Faculty</option>
-                                <option value="engineering" {% if request.POST.faculty == 'engineering' %}selected{% endif %}>Faculty of Engineering</option>
-                                <option value="science" {% if request.POST.faculty == 'science' %}selected{% endif %}>Faculty of Science</option>
-                                <option value="social-sciences" {% if request.POST.faculty == 'social-sciences' %}selected{% endif %}>Faculty of Social Sciences</option>
-                                <option value="development-studies" {% if request.POST.faculty == 'development-studies' %}selected{% endif %}>Faculty of Development Studies</option>
-                                <option value="business" {% if request.POST.faculty == 'business' %}selected{% endif %}>Faculty of Business</option>
-                                <option value="law" {% if request.POST.faculty == 'law' %}selected{% endif %}>Faculty of Law</option>
-                                <option value="arts-humanities" {% if request.POST.faculty == 'arts-humanities' %}selected{% endif %}>Faculty of Arts and Humanities</option>
-                                <option value="education" {% if request.POST.faculty == 'education' %}selected{% endif %}>Faculty of Education</option>
-                                <option value="administration" {% if request.POST.faculty == 'administration' %}selected{% endif %}>Administration</option>
-                                <option value="it-services" {% if request.POST.faculty == 'it-services' %}selected{% endif %}>IT Services</option>
-                                <option value="library" {% if request.POST.faculty == 'library' %}selected{% endif %}>Library Services</option>
-                                <option value="other" {% if request.POST.faculty == 'other' %}selected{% endif %}>Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="department">Department</label>
-                            <select id="department" name="department" class="form-select">
-                                <option value="">Select Department</option>
-                                <option value="computer-science" {% if request.POST.department == 'computer-science' %}selected{% endif %}>Computer Science</option>
-                                <option value="electrical-engineering" {% if request.POST.department == 'electrical-engineering' %}selected{% endif %}>Electrical Engineering</option>
-                                <option value="civil-engineering" {% if request.POST.department == 'civil-engineering' %}selected{% endif %}>Civil Engineering</option>
-                                <option value="mechanical-engineering" {% if request.POST.department == 'mechanical-engineering' %}selected{% endif %}>Mechanical Engineering</option>
-                                <option value="mathematics" {% if request.POST.department == 'mathematics' %}selected{% endif %}>Mathematics</option>
-                                <option value="physics" {% if request.POST.department == 'physics' %}selected{% endif %}>Physics</option>
-                                <option value="chemistry" {% if request.POST.department == 'chemistry' %}selected{% endif %}>Chemistry</option>
-                                <option value="biology" {% if request.POST.department == 'biology' %}selected{% endif %}>Biology</option>
-                                <option value="economics" {% if request.POST.department == 'economics' %}selected{% endif %}>Economics</option>
-                                <option value="international-relations" {% if request.POST.department == 'international-relations' %}selected{% endif %}>International Relations</option>
-                                <option value="sociology" {% if request.POST.department == 'sociology' %}selected{% endif %}>Sociology</option>
-                                <option value="psychology" {% if request.POST.department == 'psychology' %}selected{% endif %}>Psychology</option>
-                                <option value="accounting" {% if request.POST.department == 'accounting' %}selected{% endif %}>Accounting</option>
-                                <option value="finance" {% if request.POST.department == 'finance' %}selected{% endif %}>Finance</option>
-                                <option value="management" {% if request.POST.department == 'management' %}selected{% endif %}>Management</option>
-                                <option value="marketing" {% if request.POST.department == 'marketing' %}selected{% endif %}>Marketing</option>
-                            </select>
-                        </div>
+                        
                     </div>
 
                     <!-- Password Field -->
@@ -434,11 +131,6 @@
                         </div>
                     </div>
 
-                    <!-- Add these fields to your registration form -->
-                    <div class="form-group">
-                        <label for="studentId">Student ID:</label>
-                        <input type="text" id="studentId" name="studentId" class="form-control" placeholder="Enter your student ID">
-                    </div>
 
 
                     <!-- Confirm Password Field -->
@@ -459,6 +151,16 @@
                     </button>
                 </form>
 
+                <!-- Google Sign-up Option -->
+                {% load google_oauth_tags %}
+                {% google_oauth_configured as google_configured %}
+                {% if google_configured %}
+                <div class="divider">
+                    <span>or</span>
+                </div>
+
+                {% endif %}
+
                 <div class="secondary-actions">
                     <p>Already have an account? <a href="{% url 'accounts:login' %}">Login here</a></p>
                 </div>
@@ -467,6 +169,18 @@
     </div>
 
     <script>
+        // Show message if Google login is not configured
+        document.addEventListener('DOMContentLoaded', function() {
+            var googleBtn = document.getElementById('google-login-btn');
+            if (googleBtn) {
+                googleBtn.addEventListener('click', function(e) {
+                    if (!googleBtn.getAttribute('href') || googleBtn.getAttribute('href') === '#') {
+                        e.preventDefault();
+                        alert('Google login is not configured. Please contact admin.');
+                    }
+                });
+            }
+        });
         // Client-side validation before form submission
         document.getElementById('registerForm').addEventListener('submit', function(e) {
             const password = document.getElementById('password').value;
@@ -531,81 +245,7 @@
         document.getElementById('faculty').addEventListener('change', function() {
             const faculty = this.value;
             const departmentSelect = document.getElementById('department');
-            
-            // Clear existing options
-            departmentSelect.innerHTML = '<option value="">Select Department</option>';
-            
-            let departments = [];
-            
-            switch(faculty) {
-                case 'engineering':
-                    departments = [
-                        {value: 'computer-science', text: 'Computer Science'},
-                        {value: 'electrical-engineering', text: 'Electrical Engineering'},
-                        {value: 'civil-engineering', text: 'Civil Engineering'},
-                        {value: 'mechanical-engineering', text: 'Mechanical Engineering'}
-                    ];
-                    break;
-                case 'science':
-                    departments = [
-                        {value: 'mathematics', text: 'Mathematics'},
-                        {value: 'physics', text: 'Physics'},
-                        {value: 'chemistry', text: 'Chemistry'},
-                        {value: 'biology', text: 'Biology'}
-                    ];
-                    break;
-                case 'social-sciences':
-                    departments = [
-                        {value: 'economics', text: 'Economics'},
-                        {value: 'international-relations', text: 'International Relations'},
-                        {value: 'sociology', text: 'Sociology'},
-                        {value: 'psychology', text: 'Psychology'}
-                    ];
-                    break;
-                case 'business':
-                    departments = [
-                        {value: 'accounting', text: 'Accounting'},
-                        {value: 'finance', text: 'Finance'},
-                        {value: 'management', text: 'Management'},
-                        {value: 'marketing', text: 'Marketing'}
-                    ];
-                    break;
-                case 'administration':
-                    departments = [
-                        {value: 'human-resources', text: 'Human Resources'},
-                        {value: 'finance-admin', text: 'Finance & Administration'},
-                        {value: 'student-affairs', text: 'Student Affairs'},
-                        {value: 'academic-affairs', text: 'Academic Affairs'}
-                    ];
-                    break;
-                case 'it-services':
-                    departments = [
-                        {value: 'network-admin', text: 'Network Administration'},
-                        {value: 'system-admin', text: 'System Administration'},
-                        {value: 'web-development', text: 'Web Development'},
-                        {value: 'technical-support', text: 'Technical Support'}
-                    ];
-                    break;
-                case 'library':
-                    departments = [
-                        {value: 'reference-services', text: 'Reference Services'},
-                        {value: 'digital-resources', text: 'Digital Resources'},
-                        {value: 'archives', text: 'Archives & Special Collections'}
-                    ];
-                    break;
-                default:
-                    departments = [
-                        {value: 'general', text: 'General Studies'},
-                        {value: 'other', text: 'Other'}
-                    ];
-            }
-            
-            departments.forEach(dept => {
-                const option = document.createElement('option');
-                option.value = dept.value;
-                option.textContent = dept.text;
-                departmentSelect.appendChild(option);
-            });
+            // Add your dynamic department logic here if needed
         });
     </script>
 </body>

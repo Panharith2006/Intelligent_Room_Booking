@@ -8,6 +8,7 @@ from datetime import timedelta, datetime, time
 
 
 class Room(models.Model):
+    # Building info is now stored in room_number as text
     """Room model for managing bookable rooms"""
     image = models.ImageField(upload_to='room_images/', blank=True, null=True)
     
@@ -23,8 +24,6 @@ class Room(models.Model):
     
     AVAILABILITY_STATUS = [
         ('available', 'Available'),
-        ('maintenance', 'Under Maintenance'),
-        ('reserved', 'Reserved'),
         ('unavailable', 'Unavailable'),
     ]
     
@@ -35,8 +34,7 @@ class Room(models.Model):
     
     room_number = models.CharField(
         max_length=50,
-        unique=True,
-        help_text='Unique room number'
+        help_text='Room number or code (can be any text, duplicates allowed)'
     )
     
     capacity = models.PositiveIntegerField(
@@ -89,7 +87,7 @@ class Room(models.Model):
     
     def clean(self):
         """Custom validation for room"""
-        if self.capacity < 1:
+        if self.capacity and self.capacity < 1:
             raise ValidationError({'capacity': 'Capacity must be at least 1.'})
         
         if self.room_number:
@@ -116,16 +114,52 @@ class Room(models.Model):
         conflicts = self.bookings.filter(
             start_time__lt=end_datetime,
             end_time__gt=start_datetime,
-            status__in=['confirmed', 'pending']
+            status__in=['confirmed']
         )
         
         return not conflicts.exists()
+    
+    def get_available_slots(self, date, duration_hours=1):
+        """Get available time slots for a specific date"""
+        from datetime import time, timedelta
+        
+        # Business hours: 8 AM to 6 PM
+        start_hour = 8
+        end_hour = 18
+        
+        available_slots = []
+        current_time = time(start_hour, 0)
+        
+        while current_time.hour < end_hour:
+            slot_start = timezone.make_aware(
+                datetime.combine(date, current_time)
+            )
+            slot_end = slot_start + timedelta(hours=duration_hours)
+            
+            # Check if this slot goes beyond business hours
+            if slot_end.time() > time(end_hour, 0):
+                break
+            
+            # Check if slot is available
+            if self.is_available_at(slot_start, slot_end):
+                available_slots.append({
+                    'start': slot_start,
+                    'end': slot_end,
+                    'start_time': slot_start.strftime('%I:%M %p'),
+                    'end_time': slot_end.strftime('%I:%M %p')
+                })
+            
+            # Move to next hour
+            next_hour = (current_time.hour + 1) % 24
+            current_time = time(next_hour, 0)
+        
+        return available_slots
     
     def get_next_booking(self):
         """Get the next upcoming booking for this room"""
         return self.bookings.filter(
             start_time__gt=timezone.now(),
-            status__in=['confirmed', 'pending']
+            status__in=['confirmed']
         ).order_by('start_time').first()
     
     def get_current_booking(self):
@@ -240,31 +274,7 @@ class BookingRule(models.Model):
         if advance_time.days > self.max_advance_days:
             errors.append(f"Bookings can only be made {self.max_advance_days} days in advance.")
         
-        # Check daily limit
-        # booking_date = booking_datetime.date()
-        # daily_bookings = Booking.objects.filter(
-        #     user=user,
-        #     start_time__date=booking_date,
-        #     status__in=['pending', 'confirmed']
-        # ).count()
         
-        # if daily_bookings >= self.daily_booking_limit:
-        #     errors.append(f"Daily booking limit of {self.daily_booking_limit} reached.")
-        
-        # Check weekly limit
-        # week_start = booking_date - timedelta(days=booking_date.weekday())
-        # week_end = week_start + timedelta(days=6)
-        
-        # weekly_bookings = Booking.objects.filter(
-        #     user=user,
-        #     start_time__date__range=[week_start, week_end],
-        #     status__in=['pending', 'confirmed']
-        # ).count()
-        
-        # if weekly_bookings >= self.weekly_booking_limit:
-        #     errors.append(f"Weekly booking limit of {self.weekly_booking_limit} reached.")
-        
-        # return errors
 
     def can_cancel_booking(self, booking):
         """Check if booking can be cancelled based on rules"""
@@ -288,7 +298,7 @@ class BookingManager(models.Manager):
     def active_bookings(self):
         """Return active bookings"""
         return self.filter(
-            status__in=['pending', 'confirmed'],
+            status__in=['confirmed'],
             end_time__gt=timezone.now()
         )
     
@@ -298,7 +308,7 @@ class BookingManager(models.Manager):
         return self.filter(
             user=user,
             start_time__date=today,
-            status__in=['pending', 'confirmed']
+            status__in=['confirmed']
         )
     
     def user_bookings_this_week(self, user):
@@ -308,7 +318,7 @@ class BookingManager(models.Manager):
         return self.filter(
             user=user,
             start_time__date__range=[week_start, week_end],
-            status__in=['pending', 'confirmed']
+            status__in=['confirmed']
         )
 
 
@@ -316,11 +326,8 @@ class Booking(models.Model):
     """Booking model for room reservations"""
     
     STATUS_CHOICES = [
-        ('pending', 'Pending'),
         ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
-        ('completed', 'Completed'),
-        ('no_show', 'No Show'),
     ]
     
     user = models.ForeignKey(
@@ -354,7 +361,7 @@ class Booking(models.Model):
     status = models.CharField(
         max_length=20,
         choices=STATUS_CHOICES,
-        default='pending',
+        default='confirmed',  
         help_text='Current booking status'
     )
     
@@ -365,6 +372,28 @@ class Booking(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    
+    # Google Calendar integration fields (disabled for now)
+    calendar_sync_enabled = models.BooleanField(
+        default=False,
+        help_text='Whether to sync this booking with Google Calendar'
+    )
+    google_event_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text='Google Calendar event ID'
+    )
+    google_event_link = models.URLField(
+        blank=True,
+        null=True,
+        help_text='Link to Google Calendar event'
+    )
+    calendar_last_synced = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text='Last time this booking was synced with Google Calendar'
+    )
     
     # Custom manager
     objects = BookingManager()
@@ -423,7 +452,7 @@ class Booking(models.Model):
         # Check for overlapping bookings (exclude current booking if updating)
         overlapping_bookings = Booking.objects.filter(
             room=self.room,
-            status__in=['pending', 'confirmed'],
+            status__in=['confirmed'],
             start_time__lt=self.end_time,
             end_time__gt=self.start_time
         )
@@ -432,8 +461,14 @@ class Booking(models.Model):
             overlapping_bookings = overlapping_bookings.exclude(pk=self.pk)
         
         if overlapping_bookings.exists():
+            # Get details of the conflicting booking for better error message
+            conflict = overlapping_bookings.first()
+            conflict_start = conflict.start_time.strftime('%B %d, %Y at %I:%M %p')
+            conflict_end = conflict.end_time.strftime('%I:%M %p')
+            conflict_user = conflict.user.get_full_name() or conflict.user.username
+            
             raise ValidationError({
-                'start_time': 'This room is already booked for the selected time period.'
+                'start_time': f'This room is already booked by {conflict_user} from {conflict_start} to {conflict_end}. Please choose a different time slot.'
             })
     
     def save(self, *args, **kwargs):
@@ -458,8 +493,7 @@ class Booking(models.Model):
     
     def can_cancel(self):
         """Check if booking can be cancelled"""
-        return (self.status in ['pending', 'confirmed'] and 
-                self.start_time > timezone.now())
+        return (self.status == 'confirmed' and self.start_time > timezone.now())
     
     def can_be_cancelled(self):
         """Check if booking can be cancelled based on time restrictions"""
@@ -473,8 +507,7 @@ class Booking(models.Model):
             return True
     
     def can_be_modified(self):
-        """Check if booking can be modified"""
-        return self.status == 'pending' and self.can_be_cancelled()
+        return False
     
     def get_cancellation_deadline(self):
         """Get the deadline for cancellation"""

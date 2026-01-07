@@ -1,0 +1,141 @@
+/* Responsive adjustments for mobile */
+@media (max-width: 600px) {
+    body, html {
+        font-size: 15px;
+        padding: 0;
+        margin: 0;
+    }
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 10px 5px;
+    }
+    .logo img {
+        width: 40px;
+        height: 40px;
+    }
+    .logo div {
+        font-size: 1.1em;
+    }
+    .nav {
+        flex-direction: column;
+        width: 100%;
+    }
+    .nav-item {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+        text-align: left;
+    }
+    .container, main.container {
+        padding: 5px;
+    }
+    .section-title {
+        font-size: 1em;
+    }
+    .search-filter, .filter-row, .button-group {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    .filter-group label, .filter-group select, .filter-group input {
+        font-size: 1em;
+    }
+    .rooms-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    .room-card {
+        padding: 10px;
+        margin: 0;
+    }
+    .room-title {
+        font-size: 1.1em;
+    }
+    .modal-content {
+        width: 95vw;
+        min-width: unset;
+        padding: 10px;
+    }
+    .modal-header h3 {
+        font-size: 1.2em;
+    }
+    .modal-btn, .book-now-btn, .close-btn {
+        width: 100%;
+        margin: 5px 0;
+    }
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .stat-card {
+        padding: 10px;
+    }
+    .map-container, .card-map {
+        padding: 0;
+        margin: 0;
+        width: 100vw;
+        min-width: unset;
+    }
+    iframe {
+        min-width: 100vw;
+        height: 200px;
+    }
+}
+
+/* Announcements Styling */
+.announcements-section {
+    margin-bottom: 2rem;
+}
+
+.announcements-section .section-title {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.announcements-section .alert {
+    border-left: 4px solid;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.announcements-section .alert-danger {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.announcements-section .alert-warning {
+    border-left-color: #ffc107;
+    background-color: #fff3cd;
+}
+
+.announcements-section .alert-primary {
+    border-left-color: #0d6efd;
+    background-color: #cff4fc;
+}
+
+.announcements-section .alert-info {
+    border-left-color: #0dcaf0;
+    background-color: #d1ecf1;
+}
+
+.announcements-section .alert-heading {
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+@media (max-width: 600px) {
+    .announcements-section {
+        margin: 0 -5px 1rem -5px;
+    }
+    
+    .announcements-section .alert {
+        border-radius: 0;
+        margin-bottom: 0.5rem;
+    }
+}

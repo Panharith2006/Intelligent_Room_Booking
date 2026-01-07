@@ -3,11 +3,17 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Booking | RUPP Room Booking</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'UserPage/css/booking.css' %}">
+    <!-- Responsive CSS for mobile optimization -->
+    <link rel="stylesheet" href="{% static 'UserPage/css/responsive.css' %}">
+    <link rel="stylesheet" href="{% static 'UserPage/css/booking-inline.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'UserPage/js/booking.js' %}" defer></script>
+    <script src="{% static 'UserPage/js/booking_conflicts.js' %}" defer></script>
 </head>
 <body>
     <div class="header">
@@ -22,10 +28,28 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
     <div class="container">
+        <!-- Announcements Section -->
+        {% if announcements %}
+        <div class="announcements-section mb-3">
+            {% for announcement in announcements %}
+            <div class="alert alert-{% if announcement.priority == 'urgent' %}danger{% elif announcement.priority == 'high' %}warning{% elif announcement.priority == 'normal' %}info{% else %}secondary{% endif %} alert-dismissible fade show" role="alert">
+                <h6 class="alert-heading mb-1">
+                    <i class="fas fa-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle{% elif announcement.announcement_type == 'maintenance' %}tools{% elif announcement.announcement_type == 'event' %}calendar{% else %}info-circle{% endif %}"></i>
+                    {{ announcement.title }}
+                </h6>
+                <p class="mb-1">{{ announcement.content }}</p>
+                <small class="text-muted">{{ announcement.get_announcement_type_display }} • {{ announcement.created_at|date:"M d, Y" }}</small>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
         <!-- Django Messages -->
         {% if messages %}
             {% for message in messages %}
@@ -39,43 +63,25 @@
         <form method="post" action="{% url 'accounts:create_booking' %}" id="bookingForm">
             {% csrf_token %}
             <div class="card">
-                <div class="section">
-                    <div class="section-title">Building</div>
-                    <div class="dropdown-container">
-                        <select id="buildingSelect" name="building" class="form-control">
-                            <option value="" disabled selected>Select Building</option>
-                            {% for building in buildings %}
-                                <option value="{{ building.id }}">{{ building.name }}</option>
-                            {% empty %}
-                                <option value="1">Building A</option>
-                                <option value="2">Building STEM</option>
-                                <option value="3">Library Building</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
+                <!-- Building select removed as requested -->
                 
                 <div class="section">
                     <div class="section-title">Room</div>
                     <div class="dropdown-container">
                         <select id="roomSelect" name="room" class="form-control" required>
                             <option value="" disabled selected>Select Room</option>
+                            {% for room in rooms %}
+                                {% if room.is_available %}
+                                    <option value="{{ room.id }}">{{ room.name }} ({{ room.room_number }}) [Available]</option>
+                                {% else %}
+                                    <option value="{{ room.id }}" disabled style="color: #aaa;">{{ room.name }} ({{ room.room_number }}) [Unavailable]</option>
+                                {% endif %}
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
                 
-                <div class="section">
-                    <div class="section-title">View Room</div>
-                    <div class="view-container">
-                        <div class="room-info" id="roomInfo">
-                            <i class="fas fa-map-location-dot"></i>
-                            <span>Select a room</span>
-                        </div>
-                        <div class="status-container" id="roomStatus">
-                            <span class="status">Status Unknown</span>
-                        </div>
-                    </div>
-                </div>
+                
             </div>
 
             <div class="card">
@@ -109,6 +115,7 @@
                         <option value="seminar">Seminar</option>
                         <option value="training">Training</option>
                         <option value="other">Other</option>
+                    
                     </select>
                 </div>
                 
@@ -116,6 +123,7 @@
                     <div class="section-title">Number of Attendees</div>
                     <input type="number" name="attendees" class="form-control" placeholder="Enter expected number of attendees" min="1" max="200" required>
                 </div>
+                            {% include 'includes/chatbot_widget.html' %}
                 
                 <div class="form-group">
                     <div class="section-title">Additional Notes (Optional)</div>
@@ -194,47 +202,23 @@
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const buildingSelect = document.getElementById('buildingSelect');
             const roomSelect = document.getElementById('roomSelect');
-            const roomInfo = document.getElementById('roomInfo');
-            const roomStatus = document.getElementById('roomStatus');
-            
+
             // Auto-fill form from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
-            
-            // Auto-fill building if provided
-            if (urlParams.has('building')) {
-                const buildingName = decodeURIComponent(urlParams.get('building'));
-                console.log('Looking for building:', buildingName);
-                
-                // Find building option by name (more flexible matching)
-                for (let option of buildingSelect.options) {
-                    const optionText = option.textContent.trim();
-                    console.log('Checking building option:', optionText);
-                    if (optionText === buildingName || optionText.includes(buildingName) || buildingName.includes(optionText)) {
-                        console.log('Found matching building:', optionText);
-                        buildingSelect.value = option.value;
-                        buildingSelect.dispatchEvent(new Event('change'));
-                        break;
-                    }
-                }
-            }
-            
-            // Auto-fill room if provided (after building is loaded)
+
+            // Auto-fill room if provided
             if (urlParams.has('room') || urlParams.has('room_id')) {
                 const roomName = urlParams.has('room') ? decodeURIComponent(urlParams.get('room')) : null;
                 const roomId = urlParams.get('room_id');
-                
-                console.log('Looking for room:', roomName, 'or room ID:', roomId);
-                
+
                 setTimeout(() => {
                     let roomFound = false;
-                    
+
                     // Try to find by room ID first (most reliable)
                     if (roomId) {
                         for (let option of roomSelect.options) {
                             if (option.value === roomId) {
-                                console.log('Found room by ID:', option.textContent);
                                 roomSelect.value = option.value;
                                 roomSelect.dispatchEvent(new Event('change'));
                                 roomFound = true;
@@ -242,20 +226,16 @@
                             }
                         }
                     }
-                    
+
                     // If not found by ID, try by room name/number
                     if (!roomFound && roomName) {
                         for (let option of roomSelect.options) {
                             const optionText = option.textContent.trim();
-                            console.log('Checking room option:', optionText);
-                            
-                            // Try multiple matching strategies
                             if (optionText === roomName || 
                                 optionText.includes(roomName) || 
                                 roomName.includes(optionText) ||
                                 optionText.toLowerCase().includes(roomName.toLowerCase()) ||
                                 roomName.toLowerCase().includes(optionText.toLowerCase())) {
-                                console.log('Found matching room:', optionText);
                                 roomSelect.value = option.value;
                                 roomSelect.dispatchEvent(new Event('change'));
                                 roomFound = true;
@@ -263,28 +243,21 @@
                             }
                         }
                     }
-                    
-                    if (!roomFound) {
-                        console.warn('Room not found in dropdown:', roomName, 'ID:', roomId);
-                        console.log('Available room options:', Array.from(roomSelect.options).map(opt => ({value: opt.value, text: opt.textContent})));
-                    }
-                }, 1500); // Increased timeout to ensure rooms are loaded
+                }, 500);
             }
-            
+
             // Auto-fill date if provided
             if (urlParams.has('date')) {
                 const date = urlParams.get('date');
                 if (date) {
-                    console.log('Setting date:', date);
                     document.getElementById('dateInput').value = date;
                 }
             }
-            
+
             // Auto-fill time if provided
             if (urlParams.has('time')) {
                 const time = urlParams.get('time');
                 if (time && time.trim() !== '') {
-                    console.log('Setting time:', time);
                     document.getElementById('startTime').value = time;
                     // Set end time to 1 hour later
                     const startTime = new Date(`1970-01-01T${time}:00`);
@@ -293,7 +266,7 @@
                     document.getElementById('endTime').value = endTime;
                 }
             }
-            
+
             // Auto-fill attendees based on room capacity if provided
             if (urlParams.has('room_capacity')) {
                 const capacity = urlParams.get('room_capacity');
@@ -302,68 +275,7 @@
                     // Set a reasonable default (e.g., 50% of capacity)
                     const suggestedAttendees = Math.max(1, Math.floor(capacity * 0.5));
                     attendeesInput.value = suggestedAttendees;
-                    console.log('Suggested attendees based on capacity:', suggestedAttendees);
                 }
-            }
-
-            // Load rooms when building is selected
-            buildingSelect.addEventListener('change', function() {
-                const buildingId = this.value;
-                if (buildingId) {
-                    loadRooms(buildingId);
-                } else {
-                    roomSelect.innerHTML = '<option value="" disabled selected>Select Room</option>';
-                    updateRoomInfo('Select a room', 'Status Unknown');
-                }
-            });
-
-            // Update room info when room is selected
-            roomSelect.addEventListener('change', function() {
-                const selectedOption = this.options[this.selectedIndex];
-                if (selectedOption.value) {
-                    const roomData = JSON.parse(selectedOption.dataset.roomInfo || '{}');
-                    updateRoomInfo(
-                        `${roomData.name} (${roomData.room_number})`,
-                        roomData.available ? 'Available' : 'Unavailable'
-                    );
-                }
-            });
-
-            function loadRooms(buildingId) {
-                fetch(`{% url 'accounts:get_rooms_ajax' %}?building_id=${buildingId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        roomSelect.innerHTML = '<option value="" disabled selected>Select Room</option>';
-                        if (data.rooms && data.rooms.length > 0) {
-                            data.rooms.forEach(room => {
-                                const option = document.createElement('option');
-                                option.value = room.id;
-                                option.textContent = `${room.name} (${room.room_number}) - Capacity: ${room.capacity}`;
-                                option.dataset.roomInfo = JSON.stringify(room);
-                                if (room.available) {
-                                    option.textContent += ' [Available]';
-                                } else {
-                                    option.textContent += ' [Unavailable]';
-                                }
-                                roomSelect.appendChild(option);
-                            });
-                        } else {
-                            const option = document.createElement('option');
-                            option.value = '';
-                            option.textContent = 'No rooms found';
-                            option.disabled = true;
-                            roomSelect.appendChild(option);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading rooms:', error);
-                        roomSelect.innerHTML = '<option value="" disabled>Error loading rooms</option>';
-                    });
-            }
-
-            function updateRoomInfo(name, status) {
-                roomInfo.innerHTML = `<i class="fas fa-map-location-dot"></i><span>${name}</span>`;
-                roomStatus.innerHTML = `<span class="status ${status.toLowerCase()}">${status}</span>`;
             }
 
             // Set minimum date to today
@@ -374,7 +286,6 @@
             document.getElementById('bookingForm').addEventListener('submit', function(e) {
                 const startTime = document.getElementById('startTime').value;
                 const endTime = document.getElementById('endTime').value;
-                
                 if (startTime && endTime && startTime >= endTime) {
                     e.preventDefault();
                     alert('End time must be after start time.');
@@ -539,6 +450,7 @@
                 }, 2000);
             }
         }
+        // Science Building option is now available in the building dropdown above.
     </script>
 </body>
 </html>

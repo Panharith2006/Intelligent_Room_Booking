@@ -7,7 +7,8 @@
     <title>Profile Settings | RUPP Room Booking</title>
     <link rel="stylesheet" href="{% static 'UserPage/css/profileSetting.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="{% static 'UserPage/js/profileSetting.js' %}" defer></script>
+    <!-- Responsive CSS for mobile optimization -->
+    <link rel="stylesheet" href="{% static 'UserPage/css/responsive.css' %}">
 </head>
 <body>
     <div class="header">
@@ -15,7 +16,6 @@
             <img src="https://upload.wikimedia.org/wikipedia/km/e/ee/Rupp_logo.png?20090803154844" alt="RUPP Logo">
             <div>Royal University of Phnom Penh</div>
         </div>
-
         <div class="nav">
             <a href="{% url 'accounts:user_dashboard' %}" class="nav-item">Home</a>
             <a href="{% url 'accounts:booking' %}" class="nav-item">Booking</a>
@@ -23,271 +23,100 @@
             <a href="{% url 'accounts:setting' %}" class="nav-item active">Setting</a>
             <a href="{% url 'accounts:about_us' %}" class="nav-item">About us</a>
             <a href="{% url 'accounts:service' %}" class="nav-item">Service</a>
+            <a href="{% url 'accounts:logout' %}" class="nav-item" style="color:#e74c3c;"><i class="fas fa-sign-out-alt"></i> Log Out</a>
         </div>
     </div>
 
-    <!-- Profile Settings Page -->
     <main id="profile" class="page active">
         <div class="page-header">
             <h1><i class="fas fa-user-cog"></i> Profile Settings</h1>
             <p>Update your personal information and account preferences</p>
         </div>
-
-        <form method="post" action="{% url 'accounts:update_profile' %}" enctype="multipart/form-data" class="profile-form">
-            {% csrf_token %}
-            
-            <!-- Display Messages -->
-            {% if messages %}
-                <div class="messages">
-                    {% for message in messages %}
-                        <div class="message {{ message.tags }}">
-                            <i class="fas fa-check-circle"></i>
-                            {{ message }}
-                            <button type="button" class="close-message" onclick="this.parentElement.remove()">&times;</button>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-
-            <section class="profile-container">
-                <section class="profile-left">
-                    <div class="profile-image-container">
-                        <img src="{% if user.profile.profile_picture %}{{ user.profile.profile_picture.url }}{% else %}https://via.placeholder.com/300x300/4a90e2/ffffff?text=Profile{% endif %}" 
-                             alt="Profile Picture" id="profilePreview">
-                        <div class="image-overlay">
-                            <label for="profilePicture" class="upload-btn">
-                                <i class="fas fa-camera"></i>
-                                <span>Change Photo</span>
-                            </label>
-                            <input type="file" id="profilePicture" name="profile_picture" accept="image/*" style="display: none;">
-                        </div>
-                    </div>
-                    <div class="profile-stats">
-                        <div class="stat-item">
-                            <i class="fas fa-calendar-check"></i>
-                            <span>{{ user.bookings.count }} Bookings</span>
-                        </div>
-                        <div class="stat-item">
-                            <i class="fas fa-clock"></i>
-                            <span>Joined {{ user.date_joined|date:"M Y" }}</span>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="profile-right">
-                    <div class="form-sections">
-                        <!-- Personal Information -->
-                        <div class="form-section">
-                            <h3><i class="fas fa-user"></i> Personal Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="first_name">First Name</label>
-                                    <input type="text" id="first_name" name="first_name" 
-                                           value="{{ user.first_name|default:'' }}" 
-                                           placeholder="Enter your first name">
-                                </div>
-                                <div class="form-group">
-                                    <label for="last_name">Last Name</label>
-                                    <input type="text" id="last_name" name="last_name" 
-                                           value="{{ user.last_name|default:'' }}" 
-                                           placeholder="Enter your last name">
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="email">Email Address</label>
-                                <input type="email" id="email" name="email" 
-                                       value="{{ user.email }}" 
-                                       placeholder="Enter your email address">
-                            </div>
-                            <div class="form-group">
-                                <label for="phone">Phone Number</label>
-                                <input type="tel" id="phone" name="phone" 
-                                       value="{{ user.profile.phone|default:'' }}" 
-                                       placeholder="Enter your phone number">
-                            </div>
-                        </div>
-
-                        <!-- Professional Information -->
-                        <div class="form-section">
-                            <h3><i class="fas fa-briefcase"></i> Professional Information</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="position">Position</label>
-                                    <select id="position" name="position">
-                                        <option value="">Select Position</option>
-                                        <option value="student" {% if user.profile.position == 'student' %}selected{% endif %}>Student</option>
-                                        <option value="teacher" {% if user.profile.position == 'teacher' %}selected{% endif %}>Teacher</option>
-                                        <option value="staff" {% if user.profile.position == 'staff' %}selected{% endif %}>Staff</option>
-                                        <option value="assistant" {% if user.profile.position == 'assistant' %}selected{% endif %}>Assistant</option>
-                                        <option value="admin" {% if user.profile.position == 'admin' %}selected{% endif %}>Administrator</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="department">Department</label>
-                                    <select id="department" name="department">
-                                        <option value="">Select Department</option>
-                                        <option value="computer_science" {% if user.profile.department == 'computer_science' %}selected{% endif %}>Computer Science</option>
-                                        <option value="engineering" {% if user.profile.department == 'engineering' %}selected{% endif %}>Engineering</option>
-                                        <option value="business" {% if user.profile.department == 'business' %}selected{% endif %}>Business</option>
-                                        <option value="law" {% if user.profile.department == 'law' %}selected{% endif %}>Law</option>
-                                        <option value="medicine" {% if user.profile.department == 'medicine' %}selected{% endif %}>Medicine</option>
-                                        <option value="arts" {% if user.profile.department == 'arts' %}selected{% endif %}>Arts</option>
-                                        <option value="science" {% if user.profile.department == 'science' %}selected{% endif %}>Science</option>
-                                        <option value="other" {% if user.profile.department == 'other' %}selected{% endif %}>Other</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="student_id">Student/Employee ID</label>
-                                <input type="text" id="student_id" name="student_id" 
-                                       value="{{ user.profile.student_id|default:'' }}" 
-                                       placeholder="Enter your ID number">
-                            </div>
-                        </div>
-
-                        <!-- Account Settings -->
-                        <div class="form-section">
-                            <h3><i class="fas fa-cog"></i> Account Settings</h3>
-                            <div class="form-group">
-                                <label for="username">Username</label>
-                                <input type="text" id="username" name="username" 
-                                       value="{{ user.username }}" 
-                                       placeholder="Enter your username">
-                            </div>
-                            <div class="form-group">
-                                <label for="bio">Bio</label>
-                                <textarea id="bio" name="bio" rows="3" 
-                                          placeholder="Tell us about yourself...">{{ user.profile.bio|default:'' }}</textarea>
-                            </div>
-                            <div class="form-group">
-                                <div class="checkbox-group">
-                                    <input type="checkbox" id="email_notifications" name="email_notifications" 
-                                           {% if user.profile.email_notifications %}checked{% endif %}>
-                                    <label for="email_notifications">
-                                        <i class="fas fa-envelope"></i>
-                                        Receive email notifications
-                                    </label>
-                                </div>
-                                <div class="checkbox-group">
-                                    <input type="checkbox" id="sms_notifications" name="sms_notifications" 
-                                           {% if user.profile.sms_notifications %}checked{% endif %}>
-                                    <label for="sms_notifications">
-                                        <i class="fas fa-sms"></i>
-                                        Receive SMS notifications
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="buttons">
-                        <button type="button" class="cancel-btn" onclick="cancelForm()">
-                            <i class="fas fa-times"></i> Cancel
-                        </button>
-                        <button type="submit" class="save-btn">
-                            <i class="fas fa-save"></i> Save Changes
-                        </button>
-                    </div>
-                </section>
-            </section>
-        </form>
-
-        <!-- Password Change Section -->
-        <section class="password-section">
-            <h2><i class="fas fa-lock"></i> Change Password</h2>
-            <form method="post" action="{% url 'accounts:change_password' %}" class="password-form">
+        <div class="profile-form">
+            <form method="post" action="{% url 'accounts:profile_setting' %}" class="profile-form" id="profileForm">
                 {% csrf_token %}
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="old_password">Current Password</label>
-                        <input type="password" id="old_password" name="old_password" 
-                               placeholder="Enter current password" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="new_password1">New Password</label>
-                        <input type="password" id="new_password1" name="new_password1" 
-                               placeholder="Enter new password" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="new_password2">Confirm New Password</label>
-                        <input type="password" id="new_password2" name="new_password2" 
-                               placeholder="Confirm new password" required>
+                <input type="hidden" name="action" value="update_profile" />
+                <div class="form-group">
+                    <label for="id_first_name">First Name</label>
+                    {{ form.first_name }}
+                </div>
+                <div class="form-group">
+                    <label for="id_last_name">Last Name</label>
+                    {{ form.last_name }}
+                </div>
+                <div class="form-group">
+                    <label for="id_email">Email</label>
+                    <input type="email" id="id_email" name="email" value="{{ user.email }}" readonly>
+                    <input type="hidden" name="email" value="{{ user.email }}">
+                
+                <div class"="form-group">
+                    <label for="id_student_id">Student ID</label>
+                    {{ form.student_id }}
+                </div>
+                <div class="form-group">
+                    <label for="id_faculty">Faculty</label>
+                    {{ form.faculty }}
+                </div>
+                <div class="form-group">
+                    <label for="id_department">Department</label>
+                    {{ form.department }}
+                </div>
+                <div class="form-group">
+                    <label for="id_phone_number">Phone Number</label>
+                    {{ form.phone_number }}
+                </div>
+                <div class="form-actions">
+                    <div style="display: flex; justify-content: space-between; gap: 10px;">
+                        <a href="{% url 'accounts:setting' %}" class="btn btn-outline-primary" id="backBtn" style="min-width:140px;border-radius:6px;border-width:2px;text-decoration:none;">Back to Profile</a>
+                        <button type="submit" class="btn btn-outline-primary" id="updateBtn" style="min-width:140px;border-radius:6px;border-width:2px;">Update Profile</button>
                     </div>
                 </div>
-                <div class="password-requirements">
-                    <p><i class="fas fa-info-circle"></i> Password Requirements:</p>
-                    <ul>
-                        <li>At least 8 characters long</li>
-                        <li>Contains both uppercase and lowercase letters</li>
-                        <li>Contains at least one number</li>
-                        <li>Contains at least one special character</li>
-                    </ul>
-                </div>
-                <button type="submit" class="change-password-btn">
-                    <i class="fas fa-key"></i> Change Password
-                </button>
+                <div id="updateMessage" style="margin-top:10px;"></div>
             </form>
-        </section>
+        </div>
     </main>
-
-    <script src="{% static 'UserPage/js/profileSetting.js' %}"></script>
     <script>
-        function cancelForm() {
-            if(confirm('Are you sure you want to cancel? All unsaved changes will be lost.')) {
-                window.location.reload();
-            }
-        }
-
-        // Profile picture preview
-        document.getElementById('profilePicture').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('profilePreview').src = e.target.result;
+    document.getElementById('profileForm').onsubmit = function(e) {
+        e.preventDefault();
+        var form = this;
+        var formData = new FormData(form);
+        var url = form.getAttribute('action');
+        fetch(url, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            var msgDiv = document.getElementById('updateMessage');
+            if (data.success) {
+                msgDiv.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                setTimeout(function() {
+                    window.location.href = "{% url 'accounts:setting' %}";
+                }, 1200);
+            } else {
+                let errorMsg = data.message;
+                if (data.errors) {
+                    try {
+                        const errors = JSON.parse(data.errors);
+                        errorMsg += '<ul>';
+                        for (const field in errors) {
+                            errors[field].forEach(e => {
+                                errorMsg += `<li>${field}: ${e.message}</li>`;
+                            });
+                        }
+                        errorMsg += '</ul>';
+                    } catch {}
                 }
-                reader.readAsDataURL(file);
+                msgDiv.innerHTML = '<div class="alert alert-danger">' + errorMsg + '</div>';
             }
+        })
+        .catch(() => {
+            document.getElementById('updateMessage').innerHTML = '<div class="alert alert-danger">Update failed. Please try again.</div>';
         });
-
-        // Form validation
-        document.querySelector('.profile-form').addEventListener('submit', function(e) {
-            const email = document.getElementById('email').value;
-            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            
-            if (!emailPattern.test(email)) {
-                e.preventDefault();
-                alert('Please enter a valid email address');
-                return;
-            }
-        });
-
-        // Password strength checker
-        document.getElementById('new_password1').addEventListener('input', function() {
-            const password = this.value;
-            const requirements = document.querySelectorAll('.password-requirements li');
-            
-            // Check length
-            requirements[0].style.color = password.length >= 8 ? 'green' : 'red';
-            
-            // Check uppercase and lowercase
-            requirements[1].style.color = /[a-z]/.test(password) && /[A-Z]/.test(password) ? 'green' : 'red';
-            
-            // Check number
-            requirements[2].style.color = /\d/.test(password) ? 'green' : 'red';
-            
-            // Check special character
-            requirements[3].style.color = /[!@#$%^&*(),.?":{}|<>]/.test(password) ? 'green' : 'red';
-        });
-
-        // Auto-hide messages
-        setTimeout(function() {
-            const messages = document.querySelectorAll('.message');
-            messages.forEach(message => {
-                message.style.opacity = '0';
-                setTimeout(() => message.remove(), 300);
-            });
-        }, 5000);
+    };
+    
     </script>
-</body>
-</html>
+        {% include 'includes/chatbot_widget.html' %}
+    </body>
+    </html>

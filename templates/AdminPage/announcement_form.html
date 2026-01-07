@@ -1,0 +1,199 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} | RUPP Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/admin_header.css' %}">
+    <link rel="stylesheet" href="{% static 'AdminPage/css/adminHomePage.css' %}">
+</head>
+<body>
+    <!-- Header -->
+    {% include 'AdminPage/includes/admin_header.html' %}
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="container mt-3">
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0"><i class="fas fa-bullhorn me-2"></i>{{ title }}</h4>
+                        <a href="{% url 'booking:admin_announcements' %}" class="btn btn-light btn-sm">
+                            <i class="fas fa-arrow-left"></i> Back to Announcements
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="{{ form.title.id_for_label }}" class="form-label">
+                                        <i class="fas fa-heading"></i> Title 
+                                    </label>
+                                    {{ form.title }}
+                                    {% if form.title.errors %}
+                                        <div class="text-danger small">{{ form.title.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.announcement_type.id_for_label }}" class="form-label">
+                                        <i class="fas fa-tag"></i> Type *
+                                    </label>
+                                    {{ form.announcement_type }}
+                                    {% if form.announcement_type.errors %}
+                                        <div class="text-danger small">{{ form.announcement_type.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.priority.id_for_label }}" class="form-label">
+                                        <i class="fas fa-exclamation-triangle"></i> Priority *
+                                    </label>
+                                    {{ form.priority }}
+                                    {% if form.priority.errors %}
+                                        <div class="text-danger small">{{ form.priority.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="{{ form.content.id_for_label }}" class="form-label">
+                                    <i class="fas fa-align-left"></i> Content *
+                                </label>
+                                {{ form.content }}
+                                {% if form.content.errors %}
+                                    <div class="text-danger small">{{ form.content.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text">Write the announcement message that users will see.</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="{{ form.show_until.id_for_label }}" class="form-label">
+                                        <i class="fas fa-calendar-times"></i> Show Until (Optional)
+                                    </label>
+                                    {{ form.show_until }}
+                                    {% if form.show_until.errors %}
+                                        <div class="text-danger small">{{ form.show_until.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="form-text">Leave blank to show indefinitely until manually deactivated.</div>
+                                </div>
+                                
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">
+                                        <i class="fas fa-toggle-on"></i> Status
+                                    </label>
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            Active (visible to users)
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.errors %}
+                                        <div class="text-danger small">{{ form.is_active.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Preview Section -->
+                            <div class="card border-info mb-3">
+                                <div class="card-header bg-info text-white">
+                                    <h6 class="mb-0"><i class="fas fa-eye"></i> Preview</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="announcement-preview" class="alert alert-info">
+                                        <h6 id="preview-title">{{ announcement.title|default:"Your announcement title will appear here" }}</h6>
+                                        <p id="preview-content" class="mb-0">{{ announcement.content|default:"Your announcement content will appear here" }}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Form Actions -->
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'booking:admin_announcements' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> {{ action }} Announcement
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="footer-content">
+            <p>All Rights Reserved, Copyright © 2025 Royal University of Phnom Penh (RUPP)</p>
+            <p>Russian Federation Boulevard, Toul Kork, Phnom Penh, Cambodia. Tel: 855-972 274 936</p>
+            <p>Designed by: DSE TEAM</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Live Preview Script -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const titleInput = document.getElementById('id_title');
+            const contentInput = document.getElementById('id_content');
+            const prioritySelect = document.getElementById('id_priority');
+            const previewTitle = document.getElementById('preview-title');
+            const previewContent = document.getElementById('preview-content');
+            const previewAlert = document.getElementById('announcement-preview');
+
+            function updatePreview() {
+                const title = titleInput.value || 'Your announcement title will appear here';
+                const content = contentInput.value || 'Your announcement content will appear here';
+                const priority = prioritySelect.value;
+
+                previewTitle.textContent = title;
+                previewContent.textContent = content;
+
+                // Update alert class based on priority
+                previewAlert.className = 'alert';
+                if (priority === 'urgent') {
+                    previewAlert.classList.add('alert-danger');
+                } else if (priority === 'high') {
+                    previewAlert.classList.add('alert-warning');
+                } else if (priority === 'normal') {
+                    previewAlert.classList.add('alert-primary');
+                } else {
+                    previewAlert.classList.add('alert-info');
+                }
+            }
+
+            // Update preview on input
+            titleInput.addEventListener('input', updatePreview);
+            contentInput.addEventListener('input', updatePreview);
+            prioritySelect.addEventListener('change', updatePreview);
+
+            // Initial preview update
+            updatePreview();
+        });
+    </script>
+</body>
+</html>

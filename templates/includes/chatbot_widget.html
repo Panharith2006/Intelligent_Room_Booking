@@ -1,0 +1,13 @@
+{% load static %}
+<!-- Chatbot CSS -->
+<link rel="stylesheet" href="{% static 'css/chatbot.css' %}">
+
+<!-- Font Awesome for icons (if not already included) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<!-- Hidden element to pass user email to JavaScript -->
+{% if user.is_authenticated %}
+<div data-user-email="{{ user.email }}" style="display: none;"></div>
+{% endif %}
+
+<script src="{% static 'js/chatbot.js' %}"></script>

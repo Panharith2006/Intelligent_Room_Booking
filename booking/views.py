@@ -1,4 +1,3 @@
-# Phase four
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
@@ -22,6 +21,10 @@ from .forms import (
     QuickBookingForm, BookingRuleForm, 
 )
 import json
+from allauth.socialaccount.models import SocialAccount, SocialToken
+from googleapiclient.discovery import build
+from google.oauth2.credentials import Credentials
+from django.conf import settings
 
 
 @login_required
@@ -77,7 +80,7 @@ def room_list(request):
             conflicting_bookings = Booking.objects.filter(
                 start_time__lt=end_datetime,
                 end_time__gt=start_datetime,
-                status__in=['confirmed', 'pending']
+                status__in=['confirmed']
             ).values_list('room_id', flat=True)
             
             rooms = rooms.exclude(id__in=conflicting_bookings)
@@ -109,7 +112,7 @@ def room_detail(request, room_id):
     upcoming_bookings = Booking.objects.filter(
         room=room,
         start_time__date__range=[today, next_week],
-        status__in=['confirmed', 'pending']
+        status__in=['confirmed']
     ).order_by('start_time')
     
     # Check if room is available today
@@ -117,7 +120,6 @@ def room_detail(request, room_id):
     
     context = {
         'room': room,
-        'upcoming_bookings': upcoming_bookings,
         'today_bookings': today_bookings,
         'is_available_today': not today_bookings.exists() and room.is_available,
     }
@@ -190,6 +192,7 @@ def room_toggle_status(request, room_id):
     
     return redirect('bookings:room_detail', room_id=room_id)
 
+
 @staff_member_required
 def admin_room_list(request):
     """Admin view for managing all rooms"""
@@ -253,7 +256,7 @@ def check_room_availability(request):
                 room=room,
                 start_time__lt=end_datetime,
                 end_time__gt=start_datetime,
-                status__in=['confirmed', 'pending']
+                status__in=['confirmed']
             )
             
             is_available = not conflicts.exists() and room.is_available
@@ -281,8 +284,7 @@ def check_room_availability(request):
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
-# Duplicate create_booking function removed - keeping the one with email notifications
-    
+
     return render(request, 'UserPage/booking.html', context)
 
 @login_required
@@ -619,7 +621,7 @@ def check_booking_rules(user, room, start_datetime, end_datetime):
         today_bookings = Booking.objects.filter(
             user=user,
             date=today,
-            status__in=['confirmed', 'pending']
+            status__in=['confirmed']
         ).count()
         
         if today_bookings >= rules.daily_limit:
@@ -635,7 +637,7 @@ def check_booking_rules(user, room, start_datetime, end_datetime):
         weekly_bookings = Booking.objects.filter(
             user=user,
             date__range=[week_start, week_end],
-            status__in=['confirmed', 'pending']
+            status__in=['confirmed']
         ).count()
         
         if weekly_bookings >= rules.weekly_limit:
@@ -671,7 +673,7 @@ def user_dashboard(request):
     upcoming_bookings = Booking.objects.filter(
         user=user,
         start_time__gt=timezone.now(),
-        status__in=['confirmed', 'pending']
+        status__in=['confirmed']
     ).order_by('start_time')[:5]
     
     past_bookings = Booking.objects.filter(
@@ -682,7 +684,6 @@ def user_dashboard(request):
     # Get booking statistics
     total_bookings = Booking.objects.filter(user=user).count()
     confirmed_bookings = Booking.objects.filter(user=user, status='confirmed').count()
-    pending_bookings = Booking.objects.filter(user=user, status='pending').count()
     cancelled_bookings = Booking.objects.filter(user=user, status='cancelled').count()
     
     # Get available rooms
@@ -697,14 +698,11 @@ def user_dashboard(request):
     ).order_by('-created_at')[:10]
     
     context = {
-        'upcoming_bookings': upcoming_bookings,
         'past_bookings': past_bookings,
         'total_bookings': total_bookings,
         'confirmed_bookings': confirmed_bookings,
-        'pending_bookings': pending_bookings,
         'cancelled_bookings': cancelled_bookings,
         'available_rooms': available_rooms,
-        'recent_activity': recent_activity,
     }
     
     return render(request, 'UserPage/welcomeUser.html', context)
@@ -767,7 +765,7 @@ def room_detail(request, room_id):
     today_bookings = Booking.objects.filter(
         room=room,
         start_time__date=today,
-        status__in=['confirmed', 'pending']
+        status__in=['confirmed']
     ).order_by('start_time')
     
     # Get upcoming bookings (next 7 days)
@@ -775,7 +773,7 @@ def room_detail(request, room_id):
         room=room,
         start_time__gte=timezone.now(),
         start_time__date__lte=today + timedelta(days=7),
-        status__in=['confirmed', 'pending']
+        status__in=['confirmed']
     ).order_by('start_time')[:10]
     
     # Check if user can book this room
@@ -799,10 +797,48 @@ def create_booking(request):
         if form.is_valid():
             booking = form.save(commit=False)
             booking.user = request.user
-            
             try:
                 booking.save()
-                messages.success(request, 'Booking created successfully! Please wait for confirmation.')
+                # --- Google Calendar Integration ---
+                # Check if user is connected to Google
+                try:
+                    social_account = SocialAccount.objects.filter(user=request.user, provider='google').first()
+                    social_token = SocialToken.objects.filter(account=social_account, account__user=request.user, account__provider='google').first()
+                    if social_account and social_token:
+                        creds = Credentials(
+                            token=social_token.token,
+                            refresh_token=social_token.token_secret or getattr(social_token, 'refresh_token', None),
+                            token_uri='https://oauth2.googleapis.com/token',
+                            client_id=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY if hasattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_KEY') else settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['client_id'],
+                            client_secret=settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET if hasattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET') else settings.SOCIALACCOUNT_PROVIDERS['google']['APP']['secret'],
+                        )
+                        service = build('calendar', 'v3', credentials=creds)
+                        event = {
+                            'summary': f'Room Booking: {booking.room}',
+                            'location': booking.room.room_number if hasattr(booking.room, 'room_number') else '',
+                            'description': booking.purpose or 'Room booking',
+                            'start': {
+                                'dateTime': booking.start_time.isoformat(),
+                                'timeZone': 'Asia/Phnom_Penh',
+                            },
+                            'end': {
+                                'dateTime': booking.end_time.isoformat(),
+                                'timeZone': 'Asia/Phnom_Penh',
+                            },
+                            'reminders': {
+                                'useDefault': True,
+                            },
+                        }
+                        try:
+                            service.events().insert(calendarId='primary', body=event).execute()
+                        except Exception as gcal_exc:
+                            # Optionally log or notify user of calendar sync failure
+                            pass
+                except Exception as exc:
+                    # Optionally log or notify user of Google integration failure
+                    pass
+                # --- End Google Calendar Integration ---
+                messages.success(request, 'Room booked successfully! Your reservation is confirmed.')
                 return redirect('booking:user_bookings')
             except Exception as e:
                 messages.error(request, f'Error creating booking: {str(e)}')
@@ -810,15 +846,24 @@ def create_booking(request):
             messages.error(request, 'Please correct the errors below.')
     else:
         form = BookingForm()
-    
-    # Get available rooms
-    rooms = Room.objects.filter(is_available=True, availability_status='available')
-    
+
+    # Dynamically get unique building types from admin-added rooms
+    rooms = Room.objects.all().order_by('room_number')
+    building_types = Room.BUILDING_TYPE_CHOICES
+    # Only include building types that are actually used by rooms
+    used_types = set(rooms.values_list('building_type', flat=True))
+    buildings_list = [
+        {'id': type_key, 'name': dict(building_types)[type_key]}
+        for type_key in used_types if type_key in dict(building_types)
+    ]
+    # Sort by display name
+    buildings_list.sort(key=lambda b: b['name'])
+
     context = {
         'form': form,
         'rooms': rooms,
+        'buildings': buildings_list,
     }
-    
     return render(request, 'UserPage/booking.html', context)
 
 @login_required
@@ -942,7 +987,7 @@ def quick_book(request, room_id):
             
             try:
                 booking.save()
-                messages.success(request, 'Booking created successfully!')
+                messages.success(request, 'Room booked successfully! Your reservation is confirmed.')
                 return redirect('booking:booking_detail', booking_id=booking.id)
             except Exception as e:
                 messages.error(request, f'Error creating booking: {str(e)}')
@@ -1086,4 +1131,145 @@ def modify_booking(request, booking_id):
     }
     
     return render(request, 'UserPage/modify_booking.html', context)
+
+from django.contrib.auth.decorators import login_required
+
+@login_required
+def booking_schedule_by_day(request):
+    """Show all of the current user's room bookings for a specific day"""
+    user = request.user
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            date = timezone.now().date()
+    else:
+        date = timezone.now().date()
+    bookings = Booking.objects.filter(user=user, start_time__date=date).select_related('room').order_by('room__name', 'start_time')
+    rooms = Room.objects.filter(id__in=bookings.values_list('room_id', flat=True)).order_by('name')
+    context = {
+        'date': date,
+        'bookings': bookings,
+        'rooms': rooms,
+    }
+    return render(request, 'UserPage/schedule_by_day.html', context)
+
+@login_required
+def booking_schedule_by_room(request, room_id):
+    """Show the current user's bookings for a single room by day"""
+    user = request.user
+    room = get_object_or_404(Room, id=room_id)
+    date_str = request.GET.get('date')
+    if date_str:
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            date = timezone.now().date()
+    else:
+        date = timezone.now().date()
+    bookings = Booking.objects.filter(user=user, room=room, start_time__date=date).order_by('start_time')
+    context = {
+        'date': date,
+        'room': room,
+        'bookings': bookings,
+    }
+    return render(request, 'UserPage/schedule_by_room.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def check_room_availability_ajax(request):
+    """AJAX endpoint to check room availability and prevent conflicts"""
+    try:
+        room_id = request.POST.get('room_id')
+        date_str = request.POST.get('date')
+        start_time_str = request.POST.get('start_time')
+        end_time_str = request.POST.get('end_time')
+        booking_id = request.POST.get('booking_id')  # For editing existing bookings
+        
+        if not all([room_id, date_str, start_time_str, end_time_str]):
+            return JsonResponse({
+                'available': False,
+                'error': 'Missing required parameters'
+            })
+        
+        # Parse the inputs
+        room = Room.objects.get(id=room_id)
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        start_time = datetime.strptime(start_time_str, '%H:%M').time()
+        end_time = datetime.strptime(end_time_str, '%H:%M').time()
+        
+        # Create datetime objects
+        start_datetime = timezone.make_aware(datetime.combine(date, start_time))
+        end_datetime = timezone.make_aware(datetime.combine(date, end_time))
+        
+        # Basic validation
+        if start_datetime <= timezone.now():
+            return JsonResponse({
+                'available': False,
+                'error': 'Cannot book time in the past',
+                'conflicts': []
+            })
+        
+        if start_time >= end_time:
+            return JsonResponse({
+                'available': False,
+                'error': 'Start time must be before end time',
+                'conflicts': []
+            })
+        
+        # Check for conflicts
+        conflicts = Booking.objects.filter(
+            room=room,
+            start_time__lt=end_datetime,
+            end_time__gt=start_datetime,
+            status__in=['pending', 'confirmed']
+        )
+        
+        # Exclude current booking if editing
+        if booking_id:
+            conflicts = conflicts.exclude(id=booking_id)
+        
+        if conflicts.exists():
+            # Get conflict details
+            conflict_list = []
+            for conflict in conflicts:
+                conflict_list.append({
+                    'user': conflict.user.get_full_name() or conflict.user.username,
+                    'start_time': conflict.start_time.strftime('%I:%M %p'),
+                    'end_time': conflict.end_time.strftime('%I:%M %p'),
+                    'purpose': conflict.purpose
+                })
+            
+            return JsonResponse({
+                'available': False,
+                'error': 'Time slot conflicts with existing booking(s)',
+                'conflicts': conflict_list
+            })
+        
+        # Get available alternative slots if requested
+        available_slots = room.get_available_slots(date, duration_hours=1)
+        
+        return JsonResponse({
+            'available': True,
+            'message': 'Room is available for the selected time',
+            'alternative_slots': available_slots[:5]  # Show up to 5 alternatives
+        })
+        
+    except Room.DoesNotExist:
+        return JsonResponse({
+            'available': False,
+            'error': 'Room not found'
+        })
+    except ValueError as e:
+        return JsonResponse({
+            'available': False,
+            'error': f'Invalid date/time format: {str(e)}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'available': False,
+            'error': f'Server error: {str(e)}'
+        })
 
