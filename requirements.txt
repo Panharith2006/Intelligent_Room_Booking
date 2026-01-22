@@ -25,3 +25,7 @@ semantic-kernel>=0.1.0,<2.0.0
 httpx>=0.24.0,<0.25.0
 uvicorn[standard]>=0.24.0,<1.0.0
 
+# Analytics Dashboard (Streamlit)
+streamlit>=1.28.0
+pandas>=2.0.0
+plotly>=5.17.0

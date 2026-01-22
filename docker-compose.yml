@@ -3,6 +3,7 @@ version: '3.8'
 services:
   web:
     build: .
+    image: 
     ports:
       - "8000:8000"
     environment:

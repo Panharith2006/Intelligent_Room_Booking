@@ -48,12 +48,6 @@ class BookingAutomation:
         return results
 
     def auto_book(self, user, criteria: Dict[str, Any]) -> Dict[str, Any]:
-        """Attempt to perform an automatic booking.
-
-        The development shim does not create persistent bookings. It
-        returns a structured response the chatbot expects. Replace this
-        with real creation logic when ready.
-        """
         try:
             # Basic validation
             date = criteria.get('date')
@@ -183,6 +177,15 @@ class BookingAutomation:
         start_time = criteria.get('start_time')
         end_time = criteria.get('end_time')
         capacity = criteria.get('capacity', 1)
+        
+        # Ensure capacity is an integer
+        if isinstance(capacity, str):
+            try:
+                capacity = int(capacity)
+            except (ValueError, TypeError):
+                capacity = 1
+        elif capacity is None:
+            capacity = 1
         
         # Check time-based availability
         if date and start_time and end_time:

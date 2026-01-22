@@ -326,6 +326,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    pointer-events: auto;
+    z-index: 10;
 }
 
 .quick-action-btn::before, .inline-quick-action::before {
@@ -587,6 +589,16 @@
     }
 }
 
+/* Button Spinner Animation */
+.spinner {
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    animation: spin 0.6s linear infinite;
+}
+
 /* Success/Error States */
 .message-bubble.success {
     background: #d4edda !important;
@@ -604,10 +616,37 @@
 button:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+    pointer-events: none;
 }
 
 button:not(:disabled) {
     cursor: pointer;
+    pointer-events: auto;
+}
+
+/* Confirm Booking Button Specific Styles */
+[data-action="confirm_booking"] {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    position: relative !important;
+    z-index: 100 !important;
+}
+
+[data-action="confirm_booking"]:hover {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4) !important;
+}
+
+[data-action="confirm_booking"]:active {
+    transform: translateY(0) !important;
+}
+
+[data-action="confirm_booking"]:disabled {
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
 }
 
 /* Smooth Transitions */

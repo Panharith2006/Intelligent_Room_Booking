@@ -29,7 +29,6 @@ venv.bak/
 # Django
 *.log
 local_settings.py
-db.sqlite3
 # Environment file (contains secrets)
 .env
 

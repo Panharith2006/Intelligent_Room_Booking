@@ -1,0 +1,188 @@
+name: Staging Environment CI/CD
+
+on:
+  push:
+    branches: [ staging, stage ]
+  pull_request:
+    branches: [ staging, stage ]
+
+env:
+  PYTHON_VERSION: '3.11'
+  DJANGO_SETTINGS_MODULE: room_booking_system.settings
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test_password
+          MYSQL_DATABASE: test_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-django pytest-cov
+
+    - name: Create .env file for testing
+      run: |
+        cat > .env << EOF
+        SECRET_KEY=test-secret-key-for-ci-only
+        DEBUG=False
+        ALLOWED_HOSTS=localhost,127.0.0.1
+        USE_SQLITE=False
+        DB_NAME=test_db
+        DB_USER=root
+        DB_PASSWORD=test_password
+        DB_HOST=127.0.0.1
+        DB_PORT=3306
+        DEEPSEEK_API_KEY=${{ secrets.STAGING_DEEPSEEK_API_KEY }}
+        GROQ_API_KEY=${{ secrets.STAGING_GROQ_API_KEY }}
+        EOF
+
+    - name: Run migrations
+      run: python manage.py migrate --noinput
+
+    - name: Run Django tests
+      run: python manage.py test --verbosity=2
+
+    - name: Run integration tests
+      run: |
+        if [ -f "pytest.ini" ]; then
+          pytest tests/ --cov=. --cov-report=xml --cov-report=html
+        else
+          echo "No pytest configuration found, skipping pytest"
+        fi
+      continue-on-error: true
+
+    - name: Check code quality
+      run: |
+        pip install flake8 pylint
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      continue-on-error: true
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install safety bandit
+
+    - name: Run safety check
+      run: safety check --json
+      continue-on-error: true
+
+    - name: Run bandit security scanner
+      run: bandit -r . -f json -o bandit-report.json
+      continue-on-error: true
+
+  build:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: [test, security-scan]
+    if: github.event_name == 'push'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Login to Docker Registry
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+      if: secrets.DOCKER_USERNAME != ''
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: ${{ secrets.DOCKER_USERNAME != '' }}
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/room-booking-system:staging-${{ github.sha }}
+          ${{ secrets.DOCKER_USERNAME }}/room-booking-system:staging-latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, security-scan, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_APP_URL }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to staging server
+      run: |
+        echo "🚀 Deploying to staging environment..."
+        echo "Configure your deployment commands here"
+        # Example deployment commands:
+        # - SSH to staging server
+        # - Pull latest Docker image
+        # - Run database migrations
+        # - Restart services
+        # 
+        # ssh user@staging-server << 'EOF'
+        #   cd /app
+        #   docker-compose pull
+        #   docker-compose up -d
+        #   docker-compose exec -T web python manage.py migrate
+        #   docker-compose exec -T web python manage.py collectstatic --noinput
+        # EOF
+
+    - name: Run smoke tests
+      run: |
+        echo "Running smoke tests..."
+        # Add smoke test commands here
+        # curl -f ${{ secrets.STAGING_APP_URL }}/health || exit 1
+
+    - name: Deployment notification
+      run: |
+        echo "✅ Staging deployment completed"
+        echo "Environment: Staging"
+        echo "Commit: ${{ github.sha }}"
+        echo "Branch: ${{ github.ref_name }}"
+        echo "URL: ${{ secrets.STAGING_APP_URL }}"

@@ -173,13 +173,25 @@ class ChatbotWidget {
         }
 
         // Global document-level handler for dynamically inserted buttons
-        document.addEventListener('click', async (e) => {
+        document.addEventListener('click', (e) => {
             const btn = e.target.closest('[data-action]');
             if (!btn || !btn.dataset.action) return;
             
+            console.log('Button clicked with action:', btn.dataset.action);
+            
             const chatContainer = document.querySelector('.chatbot-container');
-            if (!chatContainer || !chatContainer.contains(btn)) return;
+            if (!chatContainer || !chatContainer.contains(btn)) {
+                console.log('Button not in chat container');
+                return;
+            }
 
+            // Check if button is disabled
+            if (btn.disabled) {
+                console.log('Button is disabled');
+                return;
+            }
+
+            console.log('Proceeding with action:', btn.dataset.action);
             e.preventDefault();
             e.stopPropagation();
             
@@ -187,50 +199,7 @@ class ChatbotWidget {
             
             // Handle confirm_booking
             if (action === 'confirm_booking') {
-                btn.disabled = true;
-                const originalText = btn.textContent;
-                btn.textContent = 'Confirming...';
-                
-                this.addMessage('Confirm booking', 'user');
-                this.showTypingIndicator();
-                
-                try {
-                    const response = await fetch(`${this.chatbotApiUrl}/confirm_booking/`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': this.getCsrfToken()
-                        },
-                        body: JSON.stringify({ 
-                            session_id: this.sessionId, 
-                            email: this.userEmail 
-                        })
-                    });
-
-                    const data = await response.json();
-                    this.hideTypingIndicator();
-
-                    if (data.session_id && data.session_id !== this.sessionId) {
-                        this.saveSessionId(data.session_id);
-                    }
-
-                    if (response.ok) {
-                        const reply = data.reply || data.message || JSON.stringify(data);
-                        this.addMessage(reply, 'bot');
-                    } else {
-                        const err = data.error || JSON.stringify(data);
-                        this.addMessage(`Sorry, I couldn't confirm the booking: ${err}`, 'bot');
-                    }
-                } catch (err) {
-                    console.error('Confirm booking error:', err);
-                    this.hideTypingIndicator();
-                    this.addMessage('Sorry, I could not confirm the booking right now. Please try again.', 'bot');
-                } finally {
-                    try { 
-                        btn.disabled = false; 
-                        btn.textContent = originalText; 
-                    } catch (e) {}
-                }
+                this.handleConfirmBooking(btn);
                 return;
             }
 
@@ -242,7 +211,7 @@ class ChatbotWidget {
                 }
                 return;
             }
-        });
+        }.bind(this)); // Bind 'this' context
 
         // Emoji picker logic
         emojiBtn.addEventListener('click', (e) => {
@@ -482,19 +451,78 @@ class ChatbotWidget {
         }
     }
     
-    addMessage(text, sender = 'user') {
+    async handleConfirmBooking(btn) {
+        console.log('handleConfirmBooking called');
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span style="display:flex;align-items:center;gap:8px;"><span class="spinner" style="border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;width:14px;height:14px;animation:spin 0.6s linear infinite;"></span>Confirming...</span>';
+        
+        this.addMessage('Confirm booking', 'user');
+        this.showTypingIndicator();
+        
+        try {
+            const response = await fetch(`${this.chatbotApiUrl}/confirm_booking/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify({ 
+                    session_id: this.sessionId, 
+                    email: this.userEmail 
+                })
+            });
+
+            const data = await response.json();
+            this.hideTypingIndicator();
+
+            if (data.session_id && data.session_id !== this.sessionId) {
+                this.saveSessionId(data.session_id);
+            }
+
+            if (response.ok) {
+                const reply = data.reply || data.message || JSON.stringify(data);
+                this.addMessage(reply, 'bot');
+            } else {
+                const err = data.error || JSON.stringify(data);
+                this.addMessage(`Sorry, I couldn't confirm the booking: ${err}`, 'bot');
+            }
+        } catch (err) {
+            console.error('Confirm booking error:', err);
+            this.hideTypingIndicator();
+            this.addMessage('Sorry, I could not confirm the booking right now. Please try again.', 'bot');
+        } finally {
+            try { 
+                btn.disabled = false; 
+                btn.innerHTML = originalHTML; 
+            } catch (e) {
+                console.error('Error resetting button:', e);
+            }
+        }
+    }
+    
+    addMessage(text, sender = 'user', isHtml = false) {
         const messagesContainer = document.getElementById('chatbot-messages');
         if (!messagesContainer) return;
+
+        console.log('Adding message:', { sender, isHtml, textLength: text.length });
 
         const time = new Date().toLocaleTimeString('en-US', { 
             hour: 'numeric', 
             minute: '2-digit' 
         });
         
+        // If isHtml is true, render the text as HTML directly
+        const content = isHtml ? text : this.formatMessage(text);
+        
+        if (isHtml) {
+            console.log('Rendering HTML content');
+        }
+        
         const messageHTML = `
             <div class="chat-message ${sender}">
                 <div class="message-bubble">
-                    ${this.formatMessage(text)}
+                    ${content}
                     <span class="message-time">${time}</span>
                 </div>
             </div>
@@ -524,12 +552,22 @@ class ChatbotWidget {
         actions.forEach(a => {
             const btn = document.createElement('button');
             btn.className = 'inline-quick-action';
+            btn.type = 'button';
             btn.textContent = a.label || (a.type || 'Action');
             btn.dataset.action = a.type || '';
             if (a.href) btn.dataset.href = a.href;
-            btn.style.cssText = 'padding:10px 16px;border-radius:6px;border:1px solid #667eea;background:#667eea;color:white;cursor:pointer;font-size:14px;font-weight:500;transition:all 0.2s;';
-            btn.onmouseover = () => btn.style.background = '#5568d3';
-            btn.onmouseout = () => btn.style.background = '#667eea';
+            
+            // Special styling for confirm_booking button
+            if (a.type === 'confirm_booking') {
+                btn.style.cssText = 'padding:10px 20px;border-radius:8px;border:none;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:white;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;pointer-events:auto;z-index:100;';
+                btn.onmouseover = () => btn.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+                btn.onmouseout = () => btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            } else {
+                btn.style.cssText = 'padding:10px 16px;border-radius:6px;border:1px solid #667eea;background:#667eea;color:white;cursor:pointer;font-size:14px;font-weight:500;transition:all 0.2s;';
+                btn.onmouseover = () => btn.style.background = '#5568d3';
+                btn.onmouseout = () => btn.style.background = '#667eea';
+            }
+            
             actionsContainer.appendChild(btn);
         });
 
@@ -741,14 +779,17 @@ class ChatbotWidget {
                 const replyText = data.reply_text || data.reply || '';
                 const replyHtml = data.reply_html || null;
                 
-                if (replyText) this.addMessage(replyText, 'bot');
+                // If we have HTML content, render it as HTML
+                if (replyHtml) {
+                    this.addMessage(replyHtml, 'bot', true);
+                } else if (replyText) {
+                    this.addMessage(replyText, 'bot');
+                }
                 
                 if (data.slots) this.renderSlotSummary(data.slots, data.slot_confidences);
                 
                 if (Array.isArray(data.actions) && data.actions.length) {
                     this.renderActions(data.actions);
-                } else if (replyHtml && !replyText) {
-                    this.addMessage(replyHtml, 'bot');
                 }
             } else {
                 const err = data.error || JSON.stringify(data);
@@ -797,12 +838,17 @@ class ChatbotWidget {
                 const replyText = data.reply_text || data.reply || '';
                 const replyHtml = data.reply_html || null;
                 
-                if (replyText) this.addMessage(replyText, 'bot');
+                // If we have HTML content, render it as HTML
+                if (replyHtml) {
+                    this.addMessage(replyHtml, 'bot', true);
+                } else if (replyText) {
+                    this.addMessage(replyText, 'bot');
+                }
                 
                 if (data.slots) this.renderSlotSummary(data.slots, data.slot_confidences);
                 if (Array.isArray(data.actions) && data.actions.length) this.renderActions(data.actions);
 
-                return replyText;
+                return replyText || replyHtml;
             } else {
                 const err = data.error || JSON.stringify(data);
                 this.addMessage(`Sorry, I encountered an error: ${err}`, 'bot');

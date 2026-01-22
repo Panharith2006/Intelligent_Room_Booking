@@ -93,21 +93,33 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'room_booking_system.wsgi.application'
 
-# MySQL database configuration (from .env)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('DB_NAME', default='room_booking'),
-        'USER': config('DB_USER', default='root'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='3306'),
-        'OPTIONS': {
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            'charset': 'utf8mb4',
-        },
+# Database configuration - supports both SQLite and MySQL
+USE_SQLITE = config('USE_SQLITE', default=False, cast=bool)
+
+if USE_SQLITE:
+    # SQLite configuration for development
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
+else:
+    # MySQL database configuration (from .env)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': config('DB_NAME', default='room_booking'),
+            'USER': config('DB_USER', default='Rith'),
+            'PASSWORD': config('DB_PASSWORD', default=''),
+            'HOST': config('DB_HOST', default='localhost'),
+            'PORT': config('DB_PORT', default='3307'),
+            'OPTIONS': {
+                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+                'charset': 'utf8mb4',
+            },
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -139,7 +151,7 @@ DEEPSEEK_BASE_URL = _config('DEEPSEEK_BASE_URL', default='https://api.deepseek.c
 
 # Groq (free, fast LLM) configuration - FREE TIER AVAILABLE
 GROQ_API_KEY = _config('GROQ_API_KEY', default='')
-GROQ_MODEL = _config('GROQ_MODEL', default='llama-3.3-70b-versatile')
+GROQ_MODEL = _config('GROQ_MODEL', default='llama-3.1-8b-instant')
 
 # Hugging Face (free alternative LLM) configuration - DEPRECATED (API shut down Dec 2025)
 HF_API_KEY = _config('HF_API_KEY', default='')
@@ -161,7 +173,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Custom user model (FIXED - only one declaration)
 AUTH_USER_MODEL = 'accounts.User'
-
 
 
 # Auth redirect settings for Allauth

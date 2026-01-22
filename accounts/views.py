@@ -285,7 +285,11 @@ def custom_login_view(request):
 
         print(f"Login attempt for: {email} as {selected_role}")
 
-        user = authenticate(request, email=email, password=password)
+        # Try authenticating with `username` first (ModelBackend expects this),
+        # then fall back to `email` for backends that accept it (e.g. allauth).
+        user = authenticate(request, username=email, password=password)
+        if user is None:
+            user = authenticate(request, email=email, password=password)
         if user is not None:
             # Check group membership
             from django.contrib.auth.models import Group

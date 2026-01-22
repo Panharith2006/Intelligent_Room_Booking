@@ -14,13 +14,23 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, student_id, phone_number, password=None, **extra_fields):
+    def create_superuser(self, email, student_id=None, phone_number=None, password=None, **extra_fields):
+        """Create and return a superuser. Accepts optional `student_id` and `phone_number`
+        so `manage.py createsuperuser` works interactively without requiring extra prompts.
+        """
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_admin', True)
-        extra_fields.setdefault('is_staff', True)  
+        extra_fields.setdefault('is_staff', True)
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
+
+        # Provide safe defaults when interactive prompt doesn't supply these fields.
+        # `student_id` and `phone_number` are allowed to be blank/null in the model.
+        if student_id in (None, ''):
+            student_id = None
+        if phone_number in (None, ''):
+            phone_number = '000-000-0000'
 
         return self.create_user(email, student_id, phone_number, password, **extra_fields)
 

@@ -6,6 +6,7 @@ import logging
 from typing import Annotated
 from datetime import datetime
 from semantic_kernel.functions import kernel_function
+from asgiref.sync import sync_to_async
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class RoomBookingPlugin:
         name="find_available_rooms",
         description="Find available rooms matching the given criteria (date, time, capacity, building)"
     )
-    def find_available_rooms(
+    async def find_available_rooms(
         self,
         date: Annotated[str, "Date in YYYY-MM-DD format"],
         start_time: Annotated[str, "Start time in HH:MM format"],
@@ -41,7 +42,8 @@ class RoomBookingPlugin:
                 'building': building if building else None
             }
             
-            rooms = self.booking_automation.find_best_rooms(criteria, limit=5)
+            # Wrap ORM operations with sync_to_async
+            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(criteria, limit=5)
             
             if not rooms:
                 return "No available rooms found matching your criteria. Try adjusting the date, time, or capacity."
@@ -65,13 +67,14 @@ class RoomBookingPlugin:
         name="get_room_info",
         description="Get detailed information about a specific room by room number"
     )
-    def get_room_info(
+    async def get_room_info(
         self,
         room_number: Annotated[str, "Room number to look up"]
     ) -> str:
         """Get information about a specific room."""
         try:
-            room = self.Room.objects.filter(room_number__iexact=room_number).first()
+            # Wrap ORM call with sync_to_async
+            room = await sync_to_async(self.Room.objects.filter(room_number__iexact=room_number).first)()
             
             if not room:
                 return f"Room {room_number} not found. Please check the room number."
@@ -87,8 +90,8 @@ class RoomBookingPlugin:
             
             info += f"Status: {'Available' if room.is_available else 'Unavailable'}\n"
             
-            # Add features
-            features = self.booking_automation._get_room_features(room)
+            # Add features (sync operation)
+            features = await sync_to_async(self.booking_automation._get_room_features)(room)
             if features:
                 info += f"\nFeatures: {', '.join(features)}\n"
             
@@ -102,7 +105,7 @@ class RoomBookingPlugin:
         name="prepare_booking",
         description="Prepare a booking preview for confirmation. Returns booking details that need user confirmation."
     )
-    def prepare_booking(
+    async def prepare_booking(
         self,
         date: Annotated[str, "Date in YYYY-MM-DD format"],
         start_time: Annotated[str, "Start time in HH:MM format"],
@@ -120,7 +123,8 @@ class RoomBookingPlugin:
                 'purpose': purpose
             }
             
-            rooms = self.booking_automation.find_best_rooms(criteria, limit=1)
+            # Wrap ORM operations with sync_to_async
+            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(criteria, limit=1)
             
             if not rooms:
                 return "No available rooms found for your requested time. Please try a different time or reduce capacity requirements."
@@ -144,10 +148,53 @@ class RoomBookingPlugin:
             return f"Error preparing booking: {str(e)}"
     
     @kernel_function(
+        name="create_booking",
+        description="Create a booking automatically when user confirms. Use this after prepare_booking."
+    )
+    async def create_booking(
+        self,
+        user_email: Annotated[str, "User's email address"],
+        date: Annotated[str, "Date in YYYY-MM-DD format"],
+        start_time: Annotated[str, "Start time in HH:MM format"],
+        end_time: Annotated[str, "End time in HH:MM format"],
+        capacity: Annotated[str, "Number of people"] = "1",
+        purpose: Annotated[str, "Purpose of booking"] = "meeting",
+    ) -> str:
+        """Create an actual booking."""
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Get user with sync_to_async
+            user = await sync_to_async(User.objects.filter(email=user_email).first)()
+            if not user:
+                return "User not found. Please sign in to create bookings."
+            
+            criteria = {
+                'date': date,
+                'start_time': start_time,
+                'end_time': end_time,
+                'capacity': int(capacity) if capacity else 1,
+                'purpose': purpose
+            }
+            
+            # Use booking automation to create booking with sync_to_async
+            result = await sync_to_async(self.booking_automation.auto_book)(user, criteria)
+            
+            if result.get('success'):
+                return result.get('user_message', 'Booking created successfully!')
+            else:
+                return result.get('user_message', result.get('error', 'Failed to create booking.'))
+            
+        except Exception as e:
+            logger.exception(f"Error creating booking: {e}")
+            return f"Error creating booking: {str(e)}"
+    
+    @kernel_function(
         name="list_user_bookings",
         description="List all bookings for the current user"
     )
-    def list_user_bookings(
+    async def list_user_bookings(
         self,
         user_email: Annotated[str, "User's email address"]
     ) -> str:
@@ -156,20 +203,24 @@ class RoomBookingPlugin:
             from django.contrib.auth import get_user_model
             User = get_user_model()
             
-            user = User.objects.filter(email=user_email).first()
+            # Wrap ORM calls with sync_to_async
+            user = await sync_to_async(User.objects.filter(email=user_email).first)()
             if not user:
                 return "User not found. Please sign in to view your bookings."
             
-            bookings = self.Booking.objects.filter(
-                user=user,
-                status='confirmed'
-            ).order_by('-start_time')[:5]
+            # Get bookings using sync_to_async with select_related to prefetch room data
+            bookings_list = await sync_to_async(lambda: list(
+                self.Booking.objects.filter(
+                    user=user,
+                    status='confirmed'
+                ).select_related('room').order_by('-start_time')[:5]
+            ))()
             
-            if not bookings:
+            if not bookings_list:
                 return "You have no confirmed bookings."
             
-            result = f"Your bookings ({bookings.count()}):\n\n"
-            for i, booking in enumerate(bookings, 1):
+            result = f"Your bookings ({len(bookings_list)}):\n\n"
+            for i, booking in enumerate(bookings_list, 1):
                 result += f"{i}. {booking.room.name} ({booking.room.room_number})\n"
                 result += f"   Date: {booking.start_time.strftime('%Y-%m-%d')}\n"
                 result += f"   Time: {booking.start_time.strftime('%H:%M')} - {booking.end_time.strftime('%H:%M')}\n"
