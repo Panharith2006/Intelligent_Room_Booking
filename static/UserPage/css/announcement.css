@@ -1,0 +1,130 @@
+:root {
+    --primary-color: #003366;
+    --accent-color: #ffcc00;
+    --transition: 0.3s ease;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: #f8f9fa;
+    font-family: 'Georgia', serif;
+    margin: 0;
+    color: #000;
+    line-height: 1.6;
+}
+
+.header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+}
+
+.logo img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.header .nav {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.header .nav a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.header .nav .nav-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    min-width: 120px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    position: relative;
+    transition: var(--transition);
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.header .nav .nav-item:hover {
+    color: var(--accent-color);
+}
+
+.header .nav .nav-item::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 3px;
+    bottom: 0;
+    left: 50%;
+    background-color: var(--accent-color);
+    transition: var(--transition);
+    transform: translateX(-50%);
+}
+
+.header .nav .nav-item:hover::after,
+.header .nav .nav-item.active::after {
+    width: 70%;
+}
+
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .header .nav {
+        width: 100%;
+        flex-direction: column;
+    }
+
+    .header .nav .nav-item {
+        width: 100%;
+        min-width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+.announcement-card {
+    border: none;
+    border-left: 4px solid #6c757d;
+}
+
+.priority-urgent {
+    border-left-color: #dc3545;
+}
+
+.priority-high {
+    border-left-color: #fd7e14;
+}
+
+.priority-normal {
+    border-left-color: #0d6efd;
+}
+
+.priority-low {
+    border-left-color: #6c757d;
+}
