@@ -1,10 +1,5 @@
-"""
-Semantic Kernel plugin for room booking operations.
-Provides native functions that can be called by the AI agent.
-"""
 import logging
 from typing import Annotated
-from datetime import datetime
 from semantic_kernel.functions import kernel_function
 from asgiref.sync import sync_to_async
 
@@ -12,222 +7,249 @@ logger = logging.getLogger(__name__)
 
 
 class RoomBookingPlugin:
-    """Plugin providing room booking functions to Semantic Kernel."""
-    
     def __init__(self, room_model, booking_model, booking_automation):
         """Initialize plugin with Django models and automation."""
         self.Room = room_model
         self.Booking = booking_model
         self.booking_automation = booking_automation
-    
+
+    # -----------------------------
+    # 1. FIND AVAILABLE ROOMS
+    # -----------------------------
     @kernel_function(
         name="find_available_rooms",
-        description="Find available rooms matching the given criteria (date, time, capacity, building)"
+        description="Search available rooms. Always call this BEFORE booking."
     )
     async def find_available_rooms(
         self,
-        date: Annotated[str, "Date in YYYY-MM-DD format"],
-        start_time: Annotated[str, "Start time in HH:MM format"],
-        end_time: Annotated[str, "End time in HH:MM format"],
-        capacity: Annotated[str, "Minimum capacity (number of people)"] = "1",
-        building: Annotated[str, "Building name (optional)"] = "",
+        date: Annotated[str, "YYYY-MM-DD"],
+        start_time: Annotated[str, "HH:MM"],
+        end_time: Annotated[str, "HH:MM"],
+        capacity: Annotated[str, "Minimum capacity"] = "1",
     ) -> str:
-        """Find available rooms and return formatted results."""
         try:
             criteria = {
-                'date': date,
-                'start_time': start_time,
-                'end_time': end_time,
-                'capacity': int(capacity) if capacity else 1,
-                'building': building if building else None
+                "date": date,
+                "start_time": start_time,
+                "end_time": end_time,
+                "capacity": int(capacity) if capacity else 1,
             }
-            
-            # Wrap ORM operations with sync_to_async
-            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(criteria, limit=5)
-            
+
+            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(
+                criteria, limit=5
+            )
+
             if not rooms:
-                return "No available rooms found matching your criteria. Try adjusting the date, time, or capacity."
-            
-            result = f"Found {len(rooms)} available room(s):\n\n"
+                return "No available rooms found. Try different time or capacity."
+
+            result = f"Found {len(rooms)} room(s):\n\n"
+
             for i, room_data in enumerate(rooms[:3], 1):
-                room = room_data['room']
+                room = room_data["room"]
                 result += f"{i}. {room.name} ({room.room_number})\n"
-                result += f"   Capacity: {room.capacity} people\n"
-                if room.building_name:
-                    result += f"   Building: {room.building_name}\n"
-                result += "\n"
-            
+                result += f"   Capacity: {room.capacity}\n"
+                result += f"   Type: {room.get_room_type_display()}\n"
+                result += f"   Use room_number: {room.room_number} when booking\n\n"
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error finding rooms: {e}")
-            return f"Error searching for rooms: {str(e)}"
-    
+            return "Error searching for rooms."
+
+    # -----------------------------
+    # 2. ROOM INFO
+    # -----------------------------
     @kernel_function(
         name="get_room_info",
-        description="Get detailed information about a specific room by room number"
+        description="Get detailed info of a room by room_number"
     )
     async def get_room_info(
         self,
-        room_number: Annotated[str, "Room number to look up"]
+        room_number: Annotated[str, "Room number"]
     ) -> str:
-        """Get information about a specific room."""
         try:
-            # Wrap ORM call with sync_to_async
-            room = await sync_to_async(self.Room.objects.filter(room_number__iexact=room_number).first)()
-            
+            room = await sync_to_async(
+                self.Room.objects.filter(room_number__iexact=room_number).first
+            )()
+
             if not room:
-                return f"Room {room_number} not found. Please check the room number."
-            
-            info = f"**{room.name} ({room.room_number})**\n\n"
-            info += f"Capacity: {room.capacity} people\n"
-            
-            if room.building_name:
-                info += f"Building: {room.building_name}\n"
-            
-            if hasattr(room, 'room_type') and room.room_type:
-                info += f"Type: {room.room_type.title()}\n"
-            
+                return f"Room {room_number} not found."
+
+            info = f"{room.name} ({room.room_number})\n"
+            info += f"Capacity: {room.capacity}\n"
             info += f"Status: {'Available' if room.is_available else 'Unavailable'}\n"
-            
-            # Add features (sync operation)
-            features = await sync_to_async(self.booking_automation._get_room_features)(room)
+
+            if hasattr(room, "room_type") and room.room_type:
+                info += f"Type: {room.get_room_type_display()}\n"
+
+            features = await sync_to_async(
+                self.booking_automation._get_room_features
+            )(room)
+
             if features:
-                info += f"\nFeatures: {', '.join(features)}\n"
-            
+                info += f"Features: {', '.join(features)}\n"
+
             return info
-            
+
         except Exception as e:
             logger.exception(f"Error getting room info: {e}")
-            return f"Error retrieving room information: {str(e)}"
-    
+            return "Error retrieving room info."
+
+    # -----------------------------
+    # 3. PREPARE BOOKING (SAFE STEP)
+    # -----------------------------
     @kernel_function(
         name="prepare_booking",
-        description="Prepare a booking preview for confirmation. Returns booking details that need user confirmation."
+        description="Prepare booking preview. DO NOT create booking yet."
     )
     async def prepare_booking(
         self,
-        date: Annotated[str, "Date in YYYY-MM-DD format"],
-        start_time: Annotated[str, "Start time in HH:MM format"],
-        end_time: Annotated[str, "End time in HH:MM format"],
-        capacity: Annotated[str, "Number of people"] = "1",
-        purpose: Annotated[str, "Purpose of booking"] = "meeting",
+        date: Annotated[str, "YYYY-MM-DD"],
+        start_time: Annotated[str, "HH:MM"],
+        end_time: Annotated[str, "HH:MM"],
+        capacity: Annotated[str, "People"] = "1",
+        purpose: Annotated[str, "Purpose"] = "meeting",
     ) -> str:
-        """Prepare booking details for user confirmation."""
         try:
+            if not all([date, start_time, end_time]):
+                return "Missing required booking information."
+
             criteria = {
-                'date': date,
-                'start_time': start_time,
-                'end_time': end_time,
-                'capacity': int(capacity) if capacity else 1,
-                'purpose': purpose
+                "date": date,
+                "start_time": start_time,
+                "end_time": end_time,
+                "capacity": int(capacity) if capacity else 1,
+                "purpose": purpose,
             }
-            
-            # Wrap ORM operations with sync_to_async
-            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(criteria, limit=1)
-            
+
+            rooms = await sync_to_async(self.booking_automation.find_best_rooms)(
+                criteria, limit=1
+            )
+
             if not rooms:
-                return "No available rooms found for your requested time. Please try a different time or reduce capacity requirements."
-            
-            best_room = rooms[0]['room']
-            
+                return "No rooms available for this time."
+
+            best_room = rooms[0]["room"]
+
             preview = (
                 f"Booking Preview:\n\n"
                 f"Room: {best_room.name} ({best_room.room_number})\n"
+                f"Room_ID: {best_room.id}\n"
                 f"Date: {date}\n"
                 f"Time: {start_time} - {end_time}\n"
-                f"Capacity: {capacity} people\n"
+                f"Capacity: {capacity}\n"
                 f"Purpose: {purpose}\n\n"
-                f"To confirm this booking, please click the 'Confirm Booking' button."
+                f"Please type 'confirm' to complete booking."
             )
-            
+
             return preview
-            
+
         except Exception as e:
             logger.exception(f"Error preparing booking: {e}")
-            return f"Error preparing booking: {str(e)}"
-    
+            return "Error preparing booking."
+
+    # -----------------------------
+    # 4. CREATE BOOKING (VALIDATED)
+    # -----------------------------
     @kernel_function(
         name="create_booking",
-        description="Create a booking automatically when user confirms. Use this after prepare_booking."
+        description="Execute booking ONLY after user confirmation."
     )
     async def create_booking(
         self,
-        user_email: Annotated[str, "User's email address"],
-        date: Annotated[str, "Date in YYYY-MM-DD format"],
-        start_time: Annotated[str, "Start time in HH:MM format"],
-        end_time: Annotated[str, "End time in HH:MM format"],
-        capacity: Annotated[str, "Number of people"] = "1",
-        purpose: Annotated[str, "Purpose of booking"] = "meeting",
+        user_email: Annotated[str, "User email"],
+        date: Annotated[str, "YYYY-MM-DD"],
+        start_time: Annotated[str, "HH:MM"],
+        end_time: Annotated[str, "HH:MM"],
+        capacity: Annotated[str, "People"] = "1",
+        purpose: Annotated[str, "Purpose"] = "meeting",
     ) -> str:
-        """Create an actual booking."""
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
-            # Get user with sync_to_async
-            user = await sync_to_async(User.objects.filter(email=user_email).first)()
+
+            if not all([user_email, date, start_time, end_time]):
+                return "Missing required booking data."
+
+            user = await sync_to_async(
+                User.objects.filter(email=user_email).first
+            )()
+
             if not user:
-                return "User not found. Please sign in to create bookings."
-            
+                return "User not found. Please login."
+
             criteria = {
-                'date': date,
-                'start_time': start_time,
-                'end_time': end_time,
-                'capacity': int(capacity) if capacity else 1,
-                'purpose': purpose
+                "date": date,
+                "start_time": start_time,
+                "end_time": end_time,
+                "capacity": int(capacity) if capacity else 1,
+                "purpose": purpose,
             }
-            
-            # Use booking automation to create booking with sync_to_async
-            result = await sync_to_async(self.booking_automation.auto_book)(user, criteria)
-            
-            if result.get('success'):
-                return result.get('user_message', 'Booking created successfully!')
+
+            # ✅ RULES ENGINE VALIDATION (CRITICAL)
+            validation = await sync_to_async(
+                self.booking_automation.validate_booking
+            )(criteria)
+
+            if not validation.get("valid"):
+                return validation.get("message", "Booking failed validation.")
+
+            # ✅ EXECUTION
+            result = await sync_to_async(
+                self.booking_automation.auto_book
+            )(user, criteria)
+
+            if result.get("success"):
+                return result.get("user_message", "Booking successful.")
             else:
-                return result.get('user_message', result.get('error', 'Failed to create booking.'))
-            
+                return result.get("error", "Booking failed.")
+
         except Exception as e:
             logger.exception(f"Error creating booking: {e}")
-            return f"Error creating booking: {str(e)}"
-    
+            return "Error creating booking."
+
+    # -----------------------------
+    # 5. LIST USER BOOKINGS
+    # -----------------------------
     @kernel_function(
         name="list_user_bookings",
-        description="List all bookings for the current user"
+        description="List user's confirmed bookings"
     )
     async def list_user_bookings(
         self,
-        user_email: Annotated[str, "User's email address"]
+        user_email: Annotated[str, "User email"]
     ) -> str:
-        """List user's bookings."""
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            
-            # Wrap ORM calls with sync_to_async
-            user = await sync_to_async(User.objects.filter(email=user_email).first)()
+
+            user = await sync_to_async(
+                User.objects.filter(email=user_email).first
+            )()
+
             if not user:
-                return "User not found. Please sign in to view your bookings."
-            
-            # Get bookings using sync_to_async with select_related to prefetch room data
-            bookings_list = await sync_to_async(lambda: list(
+                return "User not found."
+
+            bookings = await sync_to_async(lambda: list(
                 self.Booking.objects.filter(
                     user=user,
-                    status='confirmed'
-                ).select_related('room').order_by('-start_time')[:5]
+                    status="confirmed"
+                ).select_related("room").order_by("-start_time")[:5]
             ))()
-            
-            if not bookings_list:
-                return "You have no confirmed bookings."
-            
-            result = f"Your bookings ({len(bookings_list)}):\n\n"
-            for i, booking in enumerate(bookings_list, 1):
-                result += f"{i}. {booking.room.name} ({booking.room.room_number})\n"
-                result += f"   Date: {booking.start_time.strftime('%Y-%m-%d')}\n"
-                result += f"   Time: {booking.start_time.strftime('%H:%M')} - {booking.end_time.strftime('%H:%M')}\n"
-                result += "\n"
-            
+
+            if not bookings:
+                return "No bookings found."
+
+            result = f"Your bookings ({len(bookings)}):\n\n"
+
+            for i, b in enumerate(bookings, 1):
+                result += f"{i}. {b.room.name} ({b.room.room_number})\n"
+                result += f"   Date: {b.start_time.strftime('%Y-%m-%d')}\n"
+                result += f"   Time: {b.start_time.strftime('%H:%M')} - {b.end_time.strftime('%H:%M')}\n\n"
+
             return result
-            
+
         except Exception as e:
             logger.exception(f"Error listing bookings: {e}")
-            return f"Error retrieving bookings: {str(e)}"
+            return "Error retrieving bookings."

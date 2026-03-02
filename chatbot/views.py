@@ -1,6 +1,7 @@
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import render
 from asgiref.sync import async_to_sync, sync_to_async
 from django.conf import settings
 
@@ -10,8 +11,8 @@ import json
 import logging
 import re
 
-# COMMENTED OUT: Deepseek adapter (now using Groq via Semantic Kernel)
-# from ai.deepseek_adapter import call_deepseek_async, call_deepseek, get_deepseek_metrics, DeepseekError
+# Using local Ollama model (gemma3:1b) via Semantic Kernel
+# No API models required - fully local and private
 from ai.booking_automation import BookingAutomation
 from booking.models import Room, Booking, BookingRule
 from django.utils.html import strip_tags
@@ -42,43 +43,6 @@ def _clear_session_context(session_id: str):
         cache.delete(f'chat_session:{session_id}')
     except Exception:
         pass
-
-
-# COMMENTED OUT: Deepseek-specific helper functions
-# async def _deepseek_parse_structured(ai_reply):
-#     if isinstance(ai_reply, dict):
-#         return ai_reply
-#     if not isinstance(ai_reply, str):
-#         return None
-#     try:
-#         return json.loads(ai_reply)
-#     except Exception:
-#         # Attempt to extract JSON substring
-#         m = re.search(r'\{.*\}', ai_reply, re.DOTALL)
-#         if m:
-#             try:
-#                 return json.loads(m.group(0))
-#             except Exception:
-#                 return None
-#     return None
-# 
-# 
-# async def _deepseek_generate_reply(intent_data: dict, session_ctx: dict, user_message: str, session_id: str = '') -> str:
-#     deepseek_key = getattr(settings, 'DEEPSEEK_API_KEY', None)
-#     deepseek_base = getattr(settings, 'DEEPSEEK_BASE_URL', None)
-#     if not deepseek_key or not deepseek_base:
-#         return "I'm here to help — tell me what you'd like to do (find rooms, book, or view bookings)."
-# 
-#     prompt = (
-#         "You are a helpful assistant for university room bookings. Given the extracted intent and slots and the current session context, produce a short friendly reply suitable to show to the user. Respond in plain text or JSON with key 'reply_text'.\n\n"
-#         f"Intent data: {json.dumps(intent_data)}\nSession context: {json.dumps(session_ctx)}\nOriginal message: {user_message}"
-#     )
-# 
-#     resp = await call_deepseek_async(prompt, api_key=deepseek_key, base_url=deepseek_base, session_id=session_id)
-#     parsed = await _deepseek_parse_structured(resp)
-#     if isinstance(parsed, dict):
-#         return parsed.get('reply_text') or parsed.get('text') or str(parsed)
-#     return str(resp)
 
 
 async def _ai_parse_structured(ai_reply):
@@ -114,6 +78,37 @@ async def _chat_endpoint_async(request):
         user_message = body.get('message', '').strip()
         user_email = body.get('email', '')
         session_id = body.get('session_id') or str(uuid.uuid4())
+        
+        # Get authenticated user info (async-safe)
+        user_info = None
+        try:
+            # Use sync_to_async to safely check auth status
+            def get_user_info_sync():
+                if not hasattr(request, 'user'):
+                    return None
+                
+                user = request.user
+                if not user.is_authenticated:
+                    return None
+                
+                return {
+                    'email': user.email,
+                    'full_name': user.get_full_name() or f"{user.first_name} {user.last_name}".strip() or user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'username': user.username,
+                    'student_id': getattr(user, 'student_id', 'N/A'),
+                    'department': getattr(user, 'department', 'N/A'),
+                    'faculty': getattr(user, 'faculty', 'N/A'),
+                    'phone': getattr(user, 'phone_number', 'N/A'),
+                }
+            
+            user_info = await sync_to_async(get_user_info_sync, thread_sensitive=True)()
+            if user_info:
+                user_email = user_info['email']  # Override with authenticated user's email
+        except Exception as e:
+            logger.warning(f"Failed to get user info: {e}")
+            user_info = None
 
         # Handle inline slot updates
         update_slots = body.get('update_slots')
@@ -130,7 +125,7 @@ async def _chat_endpoint_async(request):
                 'slots': {k: session_ctx.get(k) for k in ('date', 'start_time', 'end_time', 'capacity', 'room_number', 'building', 'purpose')},
                 'slot_confidences': {k: 1.0 for k in ('date', 'start_time', 'end_time', 'capacity', 'room_number', 'building', 'purpose')},
                 'session_id': session_id,
-                'kernel': 'groq'
+                'kernel': 'local'
             }
             result = JsonResponse(structured)
             result['Access-Control-Allow-Origin'] = '*'
@@ -145,32 +140,23 @@ async def _chat_endpoint_async(request):
                 'slots': {},
                 'slot_confidences': {},
                 'session_id': session_id,
-                'kernel': 'groq'
+                'kernel': 'local'
             })
 
-        # Check if Groq is configured (now uses Semantic Kernel)
-        groq_key = getattr(settings, 'GROQ_API_KEY', None)
-        groq_model = getattr(settings, 'GROQ_MODEL', None)
-        
-        # COMMENTED OUT: Other AI providers
-        # hf_key = getattr(settings, 'HF_API_KEY', None)
-        # hf_model = getattr(settings, 'HF_MODEL', None)
-        # deepseek_key = getattr(settings, 'DEEPSEEK_API_KEY', None)
-        # deepseek_base = getattr(settings, 'DEEPSEEK_BASE_URL', None)
-        
-        if not groq_key:
-            return JsonResponse({'error': 'ai_not_configured', 'reply': 'AI service (Groq) is not configured.'}, status=503)
+        # Check if local Ollama is running (optional check)
+        # Ollama connection will be tested when agent makes the call
+        # If Ollama is not running, the error will be caught in the main try/except
 
         try:
-            # Use Semantic Kernel agent with Groq
+            # Use Semantic Kernel agent
             from chatbot.apps import get_chat_agent
             agent = get_chat_agent()
             
             if agent is None:
                 return JsonResponse({'error': 'agent_not_initialized', 'reply': 'Chat agent is not initialized.'}, status=503)
             
-            # Call agent's chat method - now returns dict
-            ai_reply = await agent.chat_async(user_message, user_email=user_email, session_id=session_id)
+            # Call agent's chat method with user info - now returns dict
+            ai_reply = await agent.chat_async(user_message, user_email=user_email, session_id=session_id, user_info=user_info)
             
             # ai_reply is already a dict from the updated agent
             if isinstance(ai_reply, dict):
@@ -219,14 +205,21 @@ async def _chat_endpoint_async(request):
                                 pass
 
                             confirm_html = (
-                                f"I found a room that matches your request:<br><br>"
-                                f"<strong>{room.name} ({getattr(room, 'room_number', '')})</strong><br>"
-                                f"Date: {criteria['date']}<br>"
-                                f"Time: {criteria['start_time']} - {criteria['end_time']}<br>"
-                                f"Capacity: {criteria.get('capacity', 1)} people<br><br>"
-                                "<div style=\"margin-top:12px;\">"
+                                f"✅ <strong>Perfect! I found a room for you:</strong><br><br>"
+                                f"<div style='background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 10px; margin: 10px 0;'>"
+                                f"<strong style='color: #0369a1; font-size: 16px;'>{room.name}</strong><br>"
+                                f"<span style='color: #075985;'>Room: {getattr(room, 'room_number', '')}</span><br>"
+                                f"<span style='color: #075985;'>📅 Date: {criteria['date']}</span><br>"
+                                f"<span style='color: #075985;'>🕒 Time: {criteria['start_time']} - {criteria['end_time']}</span><br>"
+                                f"<span style='color: #075985;'>👥 Capacity: {criteria.get('capacity', 1)} people</span>"
+                                f"</div>"
+                                f"<div style='margin-top: 15px; padding: 10px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;'>"
+                                f"<strong style='color: #92400e;'>Ready to confirm?</strong><br>"
+                                f"<span style='color: #78350f; font-size: 13px;'>Click the button below to complete your booking</span>"
+                                f"</div>"
+                                "<div style=\"margin-top:15px; text-align: center;\">"
                                 "<button class=\"inline-quick-action\" data-action=\"confirm_booking\" type=\"button\" "
-                                "style=\"padding:10px 20px;border-radius:8px;border:none;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:white;cursor:pointer;font-weight:600;font-size:14px;transition:all 0.2s;\">"
+                                "style=\"padding:12px 30px;border-radius:10px;border:none;background:linear-gradient(135deg, #10b981 0%, #059669 100%);color:white;cursor:pointer;font-weight:600;font-size:15px;transition:all 0.3s;box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3);\">"
                                 "✓ Confirm Booking</button>"
                                 "</div>"
                             )
@@ -238,7 +231,7 @@ async def _chat_endpoint_async(request):
                                 'slots': slots,
                                 'slot_confidences': {k: 1.0 for k in slots.keys()},
                                 'session_id': session_id,
-                                'kernel': 'groq'
+                                'kernel': 'local'
                             }
                             result = JsonResponse(structured)
                             result['Access-Control-Allow-Origin'] = '*'
@@ -255,7 +248,7 @@ async def _chat_endpoint_async(request):
                     'slots': slots,
                     'slot_confidences': {k: 1.0 for k in slots.keys()},
                     'session_id': session_id,
-                    'kernel': 'groq'
+                    'kernel': 'local'
                 }
                 result = JsonResponse(structured)
                 result['Access-Control-Allow-Origin'] = '*'
@@ -269,27 +262,12 @@ async def _chat_endpoint_async(request):
                 'slots': {}, 
                 'slot_confidences': {}, 
                 'session_id': session_id, 
-                'kernel': 'groq'
+                'kernel': 'local'
             })
             result['Access-Control-Allow-Origin'] = '*'
             return result
 
-        # COMMENTED OUT: Deepseek error handling
-        # except DeepseekError as de:
-        #     logger.exception('Deepseek call failed: %s', de)
-        #     structured = {
-        #         'reply_text': 'AI service is temporarily unavailable. Please try again later.',
-        #         'reply_html': None,
-        #         'actions': [],
-        #         'slots': {},
-        #         'slot_confidences': {},
-        #         'session_id': session_id,
-        #         'kernel': 'groq',
-        #         'error': 'ai_unavailable',
-        #     }
-        #     result = JsonResponse(structured, status=200)
-        #     result['Access-Control-Allow-Origin'] = '*'
-        #     return result
+       
         
         except Exception as e:
             logger.exception(f'Error in chat endpoint: {e}')
@@ -300,7 +278,7 @@ async def _chat_endpoint_async(request):
                 'slots': {},
                 'slot_confidences': {},
                 'session_id': session_id,
-                'kernel': 'groq',
+                'kernel': 'local',
                 'error': 'ai_error',
             }
             result = JsonResponse(structured, status=200)
@@ -315,7 +293,7 @@ async def _chat_endpoint_async(request):
 
 
 @csrf_exempt
-async def confirm_booking(request):
+async def _confirm_booking_async(request):
     try:
         body = json.loads(request.body.decode('utf-8'))
     except Exception:
@@ -336,14 +314,23 @@ async def confirm_booking(request):
     from django.contrib.auth import get_user_model
     User = get_user_model()
     user = None
+    
+    # Get user from request or email (async-safe)
     try:
-        is_auth = await sync_to_async(lambda: getattr(request, 'user', None).is_authenticated if getattr(request, 'user', None) else False)()
-    except Exception:
-        is_auth = False
-
-    if is_auth and getattr(request, 'user', None):
-        user = request.user
-    elif user_email:
+        def get_request_user():
+            if not hasattr(request, 'user'):
+                return None
+            if not request.user.is_authenticated:
+                return None
+            return request.user
+        
+        user = await sync_to_async(get_request_user, thread_sensitive=True)()
+    except Exception as e:
+        logger.warning(f"Failed to get request user: {e}")
+        user = None
+    
+    # If no authenticated user, try to get by email
+    if not user and user_email:
         try:
             user = await sync_to_async(User.objects.get, thread_sensitive=False)(email=user_email)
         except User.DoesNotExist:
@@ -363,47 +350,26 @@ async def confirm_booking(request):
     return JsonResponse({'reply': reply_text, 'result': result, 'session_id': session_id})
 
 
+# Sync wrapper for compatibility
+@csrf_exempt
+def confirm_booking(request):
+    """Sync wrapper for the async confirm_booking endpoint."""
+    return async_to_sync(_confirm_booking_async)(request)
+
+
 @require_http_methods(['GET'])
 def health_check(request):
     from .apps import get_chat_agent
+    from django.conf import settings
     agent = get_chat_agent()
+    model_name = getattr(settings, 'OLLAMA_MODEL', 'gemma3:1b')
     status = {
         'status': 'healthy' if agent else 'degraded',
         'agent_initialized': agent is not None,
-        'service': 'Django Chatbot (Groq + Semantic Kernel)'
+        'service': 'Django Chatbot (Local Ollama + Semantic Kernel)',
+        'model': model_name
     }
     return JsonResponse(status)
-
-
-# COMMENTED OUT: Deepseek debug endpoint
-# @require_http_methods(["GET"])
-# def debug_deepseek(request):
-#     """Lightweight endpoint to verify Deepseek connectivity and adapter health.
-# 
-#     Returns adapter metrics and a short sample reply from Deepseek without exposing the API key.
-#     """
-#     deepseek_key = getattr(settings, 'DEEPSEEK_API_KEY', None)
-#     deepseek_base = getattr(settings, 'DEEPSEEK_BASE_URL', None)
-# 
-#     if not deepseek_key or not deepseek_base:
-#         return JsonResponse({'ok': False, 'error': 'deepseek_not_configured'}, status=503)
-# 
-#     prompt = "Health check: please reply with a short 'pong' or OK message."
-#     start = None
-#     try:
-#         import time
-#         start = time.time()
-#         # call sync function via async helper for safety
-#         resp = async_to_sync(call_deepseek_async)(prompt, api_key=deepseek_key, base_url=deepseek_base, timeout=10)
-#         latency_ms = int((time.time() - start) * 1000)
-#         metrics = get_deepseek_metrics()
-#         return JsonResponse({'ok': True, 'sample_reply': resp if isinstance(resp, str) else str(resp), 'latency_ms': latency_ms, 'metrics': metrics})
-#     except DeepseekError as de:
-#         logger.exception(f'Deepseek debug call failed: {de}')
-#         return JsonResponse({'ok': False, 'error': 'deepseek_error', 'detail': str(de)}, status=502)
-#     except Exception as e:
-#         logger.exception(f'Unexpected error in debug_deepseek: {e}')
-#         return JsonResponse({'ok': False, 'error': 'internal_error', 'detail': str(e)}, status=500)
 
 
 @csrf_exempt
@@ -428,11 +394,7 @@ def clear_session(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
-
-
-
 # Rule-based processing removed — Deepseek is the only supported path.
-
 
 async def _handle_booking_intent(request, intent_data: dict, user_email: str, session_id: str) -> str:
     """
@@ -474,7 +436,6 @@ async def _handle_booking_intent(request, intent_data: dict, user_email: str, se
             'start_time': intent_data.get('start_time'),
             'end_time': intent_data.get('end_time'),
             'capacity': intent_data.get('capacity'),
-            'building': intent_data.get('building'),
             'purpose': intent_data.get('purpose'),
             'raw_message': intent_data.get('raw_message', '')
         }
@@ -621,3 +582,22 @@ async def _handle_room_info(room_number: str) -> str:
 def chat_endpoint(request):
     """Sync wrapper for the async chat endpoint."""
     return async_to_sync(_chat_endpoint_async)(request)
+
+
+def chatbot_index(request):
+    """Render the standalone chatbot test page."""
+    from datetime import datetime
+    
+    # Get system statistics
+    total_rooms = Room.objects.count()
+    available_rooms = Room.objects.filter(is_available=True).count()
+    total_bookings = Booking.objects.count()
+    
+    context = {
+        'total_rooms': total_rooms,
+        'available_rooms': available_rooms,
+        'total_bookings': total_bookings,
+        'page_title': 'Room Booking Chatbot',
+    }
+    
+    return render(request, 'chatbot/index.html', context)
