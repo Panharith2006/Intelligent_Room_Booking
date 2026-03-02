@@ -196,7 +196,7 @@ class VectorStore:
             self.knowledge_collection = self._get_or_create_collection("knowledge_base")
             self.rooms_collection = self._get_or_create_collection("rooms_info")
             self.policies_collection = self._get_or_create_collection("booking_policies")
-            logger.warning("⚠ All vector store data has been reset")
+            logger.warning("All vector store data has been reset")
             return True
         except Exception as e:
             logger.error(f"Failed to reset vector store: {e}")
