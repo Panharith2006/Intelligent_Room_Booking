@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_GET
 from django.views.decorators.csrf import csrf_exempt
+from django.urls import reverse
 
 # Python standard library
 from functools import wraps
@@ -37,6 +38,83 @@ from accounts.forms import UserUpdateForm
 
 # Get the custom User model
 User = get_user_model()
+
+
+# Booking policy constants (University policy - March 2026)
+BOOKING_MIN_DURATION_HOURS = 1
+BOOKING_MAX_DURATION_HOURS = 3
+BOOKING_MIN_ADVANCE_HOURS = 1
+BOOKING_MAX_ADVANCE_DAYS = 30
+BOOKING_MAX_ACTIVE_PER_USER = 5
+CANCELLATION_NOTICE_HOURS = 3
+BOOKING_BUFFER_MINUTES = 5
+
+
+def get_missing_profile_fields(user):
+    """Return a list of required lecturer profile fields that are missing."""
+    missing_fields = []
+
+    if not user.student_id or str(user.student_id).startswith(('USR', 'GOOGLE')):
+        missing_fields.append('Lecturer ID')
+    if not user.department:
+        missing_fields.append('Department')
+    if not user.faculty:
+        missing_fields.append('Faculty')
+    if not user.phone_number:
+        missing_fields.append('Phone number')
+    if not user.profile_picture:
+        missing_fields.append('Profile photo')
+
+    return missing_fields
+
+
+def check_consecutive_booking_limit(user, room, start_datetime, end_datetime):
+    """
+    Enforce that consecutive bookings by the same user in the same room
+    do not exceed BOOKING_MAX_DURATION_HOURS total.
+    """
+    from booking.models import Booking
+
+    buffer_delta = timezone.timedelta(minutes=BOOKING_BUFFER_MINUTES)
+    day_start = start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = start_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    bookings = list(
+        Booking.objects.filter(
+            user=user,
+            room=room,
+            status='confirmed',
+            start_time__gte=day_start,
+            end_time__lte=day_end,
+        ).order_by('start_time')
+    )
+
+    chain_start = start_datetime
+    chain_end = end_datetime
+
+    changed = True
+    while changed:
+        changed = False
+        for existing in bookings:
+            is_touching_before = abs((existing.end_time - chain_start).total_seconds()) <= buffer_delta.total_seconds()
+            is_touching_after = abs((existing.start_time - chain_end).total_seconds()) <= buffer_delta.total_seconds()
+
+            if is_touching_before or is_touching_after:
+                new_start = min(chain_start, existing.start_time)
+                new_end = max(chain_end, existing.end_time)
+                if new_start != chain_start or new_end != chain_end:
+                    chain_start, chain_end = new_start, new_end
+                    changed = True
+
+    consecutive_hours = (chain_end - chain_start).total_seconds() / 3600
+    if consecutive_hours > BOOKING_MAX_DURATION_HOURS:
+        return (
+            False,
+            f'Consecutive bookings in the same room cannot exceed {BOOKING_MAX_DURATION_HOURS} hours total.'
+        )
+
+    return True, ''
+
 # ============================================================================
 # UTILITY FUNCTIONS
 # ============================================================================
@@ -258,7 +336,8 @@ def register(request):
                 student_id=student_id or " ",
                 phone_number=phone_number or "000-000-0000",
                 faculty=faculty,
-                department=department
+                department=department,
+                booking_approval_status='pending'
             )
             
             # Setup user role
@@ -440,6 +519,8 @@ def booking_view(request):
         Q(show_until__isnull=True) | Q(show_until__gte=timezone.now())
     ).order_by('-priority', '-created_at')[:3]  # Show top 3 announcements on booking page
 
+    missing_profile_fields = get_missing_profile_fields(request.user)
+
     context = {
         'user': request.user,
         'user_role': user_role,
@@ -460,6 +541,18 @@ def booking_view(request):
         'autofill_date': date_param,
         'autofill_time': time_param,
         'room_building_map': room_building_map,
+        'missing_profile_fields': missing_profile_fields,
+        'profile_complete_for_booking': len(missing_profile_fields) == 0,
+        'is_booking_approved': request.user.booking_approval_status == 'approved',
+        'booking_approval_status': request.user.booking_approval_status,
+        'booking_policy': {
+            'min_duration_hours': BOOKING_MIN_DURATION_HOURS,
+            'max_duration_hours': BOOKING_MAX_DURATION_HOURS,
+            'min_advance_hours': BOOKING_MIN_ADVANCE_HOURS,
+            'max_advance_days': BOOKING_MAX_ADVANCE_DAYS,
+            'max_active_per_user': BOOKING_MAX_ACTIVE_PER_USER,
+            'buffer_minutes': BOOKING_BUFFER_MINUTES,
+        },
     }
 
     return render(request, 'UserPage/booking.html', context)
@@ -545,7 +638,7 @@ def admin_view_rooms_view(request):
 
 @login_required
 def create_booking(request):
-    """Handle booking creation with comprehensive validation"""
+    """Handle booking creation with university policy validation."""
     user_role = get_user_role(request.user)
     
     if user_role == 'Admin':
@@ -565,10 +658,32 @@ def create_booking(request):
             purpose = request.POST.get('purpose', '').strip()
             attendees = request.POST.get('attendees', 1)
             notes = request.POST.get('notes', '').strip()
+            agreed_to_policy = request.POST.get('policy_agreement') == 'on'
             
             # Basic validation
             if not all([room_id, date_str, start_time_str, end_time_str, purpose]):
                 messages.error(request, 'Please fill in all required fields.')
+                return redirect('accounts:booking')
+
+            if not agreed_to_policy:
+                messages.error(request, 'You must agree to the room booking terms and policy before booking.')
+                return redirect('accounts:booking')
+
+            missing_profile_fields = get_missing_profile_fields(request.user)
+            if missing_profile_fields:
+                messages.error(
+                    request,
+                    'Your profile is incomplete. Please update these fields before booking: '
+                    + ', '.join(missing_profile_fields)
+                )
+                return redirect('accounts:profile_setting')
+
+            if request.user.booking_approval_status != 'approved':
+                messages.error(
+                    request,
+                    'Your lecturer account is pending admin approval for room booking. '
+                    'Please complete your verification profile and wait for approval.'
+                )
                 return redirect('accounts:booking')
             
             # Parse and validate date and time
@@ -584,22 +699,15 @@ def create_booking(request):
             start_datetime = timezone.make_aware(datetime.combine(booking_date, start_time))
             end_datetime = timezone.make_aware(datetime.combine(booking_date, end_time))
             
-            # Validate booking is at least 1 hour in advance
+            # Policy: cannot book in the past and must be at least 1 hour in advance
             now = timezone.now()
             if start_datetime <= now + timezone.timedelta(hours=1):
                 messages.error(request, 'Bookings must be made at least 1 hour before the scheduled start time.')
                 return redirect('accounts:booking')
 
-            # Validate booking is not more than 14 days in advance
-            if start_datetime > now + timezone.timedelta(days=14):
-                messages.error(request, 'Rooms can only be booked up to 14 days in advance.')
-                return redirect('accounts:booking')
-
-            # Validate booking time is between 7:00am and 8:30pm
-            allowed_start = start_datetime.replace(hour=7, minute=0, second=0, microsecond=0)
-            allowed_end = start_datetime.replace(hour=20, minute=30, second=0, microsecond=0)
-            if not (allowed_start <= start_datetime <= allowed_end and allowed_start <= end_datetime <= allowed_end):
-                messages.error(request, 'Bookings are only allowed between 7:00am and 8:30pm for each room.')
+            # Policy: cannot book more than one month in advance
+            if start_datetime > now + timezone.timedelta(days=BOOKING_MAX_ADVANCE_DAYS):
+                messages.error(request, f'Rooms can only be booked up to {BOOKING_MAX_ADVANCE_DAYS} days in advance.')
                 return redirect('accounts:booking')
 
             # Validate end time is after start time
@@ -607,15 +715,15 @@ def create_booking(request):
                 messages.error(request, 'End time must be after start time.')
                 return redirect('accounts:booking')
 
-            # Validate booking duration (max 8 hours)
+            # Policy: booking duration must be from 1 hour to 3 hours
             duration = end_datetime - start_datetime
-            if duration.total_seconds() > 8 * 3600:
-                messages.error(request, 'Maximum booking duration is 8 hours.')
+            duration_hours = duration.total_seconds() / 3600
+            if duration_hours > BOOKING_MAX_DURATION_HOURS:
+                messages.error(request, f'Maximum booking duration per session is {BOOKING_MAX_DURATION_HOURS} hours.')
                 return redirect('accounts:booking')
 
-            # Validate minimum booking duration (30 minutes)
-            if duration.total_seconds() < 30 * 60:
-                messages.error(request, 'Minimum booking duration is 30 minutes.')
+            if duration_hours < BOOKING_MIN_DURATION_HOURS:
+                messages.error(request, f'Minimum booking duration per session is {BOOKING_MIN_DURATION_HOURS} hour.')
                 return redirect('accounts:booking')
             
             # Get room and validate
@@ -627,6 +735,10 @@ def create_booking(request):
             
             if not room.is_available:
                 messages.error(request, 'This room is not available for booking.')
+                return redirect('accounts:booking')
+
+            if getattr(room, 'availability_status', 'available') != 'available':
+                messages.error(request, 'This room is currently unavailable for booking.')
                 return redirect('accounts:booking')
             
             # Validate attendees count
@@ -642,29 +754,57 @@ def create_booking(request):
                 messages.error(request, 'Invalid number of attendees.')
                 return redirect('accounts:booking')
             
-            # Check for conflicts
+            # Policy: user cannot book multiple rooms at the same time slot
+            overlapping_user_bookings = Booking.objects.filter(
+                user=request.user,
+                status='confirmed',
+                start_time__lt=end_datetime,
+                end_time__gt=start_datetime,
+            )
+
+            if overlapping_user_bookings.exists():
+                messages.error(request, 'You already have a booking during this time slot. Multiple rooms at the same time are not allowed.')
+                return redirect('accounts:booking')
+
+            # Policy: prevent overlap and enforce small turnover buffer between bookings
+            buffer_delta = timezone.timedelta(minutes=BOOKING_BUFFER_MINUTES)
             conflicts = Booking.objects.filter(
-                    room=room,
-                    start_time__lt=end_datetime,
-                    end_time__gt=start_datetime,
-                    status__in=['confirmed']
-                )
+                room=room,
+                status='confirmed',
+                start_time__lt=end_datetime + buffer_delta,
+                end_time__gt=start_datetime - buffer_delta,
+            )
             
             if conflicts.exists():
                 conflict_booking = conflicts.first()
                 conflict_time = conflict_booking.start_time.strftime('%Y-%m-%d %H:%M')
-                messages.error(request, f'This time slot conflicts with an existing booking at {conflict_time}.')
+                messages.error(
+                    request,
+                    f'This time slot conflicts with an existing booking at {conflict_time}. '
+                    f'A {BOOKING_BUFFER_MINUTES}-minute buffer between bookings is required.'
+                )
                 return redirect('accounts:booking')
-            
-            # Check daily booking limit (optional)
-            daily_bookings = Booking.objects.filter(
+
+            # Policy: user can have at most 5 active bookings at a time
+            active_bookings_count = Booking.objects.filter(
                 user=request.user,
-                start_time__date=booking_date,
-                status__in=['confirmed', 'pending']
+                status='confirmed',
+                end_time__gt=now,
             ).count()
-            
-            if daily_bookings >= 3:  # Maximum 3 bookings per day
-                messages.error(request, 'You have reached the maximum number of bookings per day (3).')
+
+            if active_bookings_count >= BOOKING_MAX_ACTIVE_PER_USER:
+                messages.error(
+                    request,
+                    f'You already have {BOOKING_MAX_ACTIVE_PER_USER} active bookings. '
+                    'Complete or cancel one booking before making a new one.'
+                )
+                return redirect('accounts:booking')
+
+            can_book_consecutively, consecutive_error = check_consecutive_booking_limit(
+                request.user, room, start_datetime, end_datetime
+            )
+            if not can_book_consecutively:
+                messages.error(request, consecutive_error)
                 return redirect('accounts:booking')
             
             # Create booking
@@ -676,7 +816,7 @@ def create_booking(request):
                 purpose=purpose,
                 attendees=attendees_count,
                 additional_notes=notes,
-                status='confirmed'  
+                status='confirmed'
             )
             
             # Check if this is a redirect from user dashboard
@@ -688,8 +828,7 @@ def create_booking(request):
             # Success message with booking details (only if not from dashboard)
             if not from_dashboard:
                 booking_time = start_datetime.strftime('%Y-%m-%d at %H:%M')
-                duration_hours = duration.total_seconds() / 3600
-                
+
                 messages.success(request, 
                     f'Room booked successfully! '
                     f'Room: {room.name} ({room.room_number}) | '
@@ -844,8 +983,12 @@ def profile_setting_view(request):
         form = UserUpdateForm(instance=request.user)
         
         # Add helpful message for new Google users
-        if is_google_user and (not request.user.phone_number or not request.user.faculty or request.user.student_id.startswith('GOOGLE')):
-            messages.info(request, 'Complete your profile! You can add your student ID, phone number, faculty, and other details to personalize your account.')
+        if is_google_user and (
+            not request.user.phone_number
+            or not request.user.faculty
+            or (request.user.student_id or '').startswith('GOOGLE')
+        ):
+            messages.info(request, 'Complete your profile! You can add your lecturer ID, phone number, faculty, and other details to personalize your account.')
     
     context = {
         'user': request.user,
@@ -867,6 +1010,13 @@ def about_us_view(request):
     }
     
     return render(request, 'UserPage/about-us.html', context)
+
+
+@login_required
+@user_required
+def booking_policy_view(request):
+    """Backwards-compatible endpoint: policy content now lives in service page."""
+    return redirect(f"{reverse('accounts:service')}#policy")
 
 # ============================================================================
 # SUPPORT/SERVICE VIEW
@@ -1316,32 +1466,17 @@ def all_bookings_view(request):
             
             if action and booking_id:
                 booking = Booking.objects.get(id=booking_id)
-                room = booking.room
                 if action == 'approve':
                     booking.status = 'confirmed'
                     booking.save()
-                    # Mark room as occupied
-                    room.availability_status = 'occupied'
-                    room.is_available = False
-                    room.save()
                     messages.success(request, f'Booking for {booking.room.name} has been approved!')
                 elif action == 'reject' or action == 'deny':
                     booking.status = 'cancelled'
                     booking.save()
-                    # If no other confirmed bookings for this room, mark as available
-                    if not room.bookings.filter(status='confirmed').exclude(id=booking.id).exists():
-                        room.availability_status = 'available'
-                        room.is_available = True
-                        room.save()
                     messages.success(request, f'Booking for {booking.room.name} has been rejected!')
                 elif action == 'cancel':
                     booking.status = 'cancelled'
                     booking.save()
-                    # If no other confirmed bookings for this room, mark as available
-                    if not room.bookings.filter(status='confirmed').exclude(id=booking.id).exists():
-                        room.availability_status = 'available'
-                        room.is_available = True
-                        room.save()
                     messages.success(request, f'Booking for {booking.room.name} has been cancelled!')
                     
         except Booking.DoesNotExist:
@@ -1608,6 +1743,21 @@ def manage_users_view(request):
                     target_user.save()
                     status = 'activated' if target_user.is_active else 'deactivated'
                     messages.success(request, f'User {target_user.get_full_name()} has been {status}.')
+
+                elif action == 'approve_booking_access':
+                    target_user.booking_approval_status = 'approved'
+                    target_user.save(update_fields=['booking_approval_status'])
+                    messages.success(request, f'Booking access approved for {target_user.get_full_name()}.')
+
+                elif action == 'reject_booking_access':
+                    target_user.booking_approval_status = 'rejected'
+                    target_user.save(update_fields=['booking_approval_status'])
+                    messages.success(request, f'Booking access rejected for {target_user.get_full_name()}.')
+
+                elif action == 'set_booking_pending':
+                    target_user.booking_approval_status = 'pending'
+                    target_user.save(update_fields=['booking_approval_status'])
+                    messages.success(request, f'Booking access set to pending for {target_user.get_full_name()}.')
                     
         except User.DoesNotExist:
             messages.error(request, 'User not found.')
@@ -1628,6 +1778,8 @@ def manage_users_view(request):
         inactive_users = total_users - active_users
         admin_count = admin_users.count()
         user_count = regular_users.count()
+        pending_approval_users = regular_users.filter(booking_approval_status='pending')
+        pending_approval_count = pending_approval_users.count()
         
     except Exception as e:
         messages.error(request, f'Error loading users: {str(e)}')
@@ -1639,6 +1791,8 @@ def manage_users_view(request):
         inactive_users = 0
         admin_count = 0
         user_count = 0
+        pending_approval_users = []
+        pending_approval_count = 0
     
     context = {
         'user': request.user,
@@ -1651,6 +1805,8 @@ def manage_users_view(request):
         'inactive_users': inactive_users,
         'admin_count': admin_count,
         'user_count': user_count,
+        'pending_approval_users': pending_approval_users,
+        'pending_approval_count': pending_approval_count,
     }
     
     return render(request, 'AdminPage/manageUsers.html', context)
@@ -2291,15 +2447,13 @@ def booking_detail_view(request, booking_id):
         
         booking = Booking.objects.get(id=booking_id, user=request.user)
         
-        # Calculate cancellation availability
+        # Calculate cancellation availability and penalty status
         current_time = timezone.now()
         time_until_booking = booking.start_time - current_time
-        minimum_notice = timedelta(hours=24)
-        
-        can_cancel = (
-            booking.status in ['confirmed'] and 
-            time_until_booking >= minimum_notice
-        )
+        minimum_notice = timedelta(hours=CANCELLATION_NOTICE_HOURS)
+
+        can_cancel = booking.status in ['confirmed'] and time_until_booking.total_seconds() > 0
+        late_cancellation = can_cancel and time_until_booking < minimum_notice
         
         context = {
             'booking': booking,
@@ -2309,6 +2463,8 @@ def booking_detail_view(request, booking_id):
             'current_time': current_time,
             'time_until_booking': time_until_booking,
             'hours_until_booking': time_until_booking.total_seconds() / 3600,
+            'late_cancellation': late_cancellation,
+            'cancellation_notice_hours': CANCELLATION_NOTICE_HOURS,
         }
         
         return render(request, 'UserPage/booking-detail.html', context)
@@ -2345,7 +2501,7 @@ def check_availability_ajax(request):
                 return JsonResponse({'available': False, 'message': 'Room not found'})
             
             # Check if room is available
-            if not room.is_available:
+            if not room.is_available or getattr(room, 'availability_status', 'available') != 'available':
                 return JsonResponse({'available': False, 'message': 'Room is not available for booking'})
             
             # Parse date and time
@@ -2355,25 +2511,47 @@ def check_availability_ajax(request):
                 start_time_obj = datetime.strptime(start_time, '%H:%M').time()
                 end_time_obj = datetime.strptime(end_time, '%H:%M').time()
                 
-                start_datetime = datetime.combine(booking_date, start_time_obj)
-                end_datetime = datetime.combine(booking_date, end_time_obj)
+                start_datetime = timezone.make_aware(datetime.combine(booking_date, start_time_obj))
+                end_datetime = timezone.make_aware(datetime.combine(booking_date, end_time_obj))
             except ValueError:
                 return JsonResponse({'available': False, 'message': 'Invalid date or time format'})
             
-            # Check if booking is in the future
-            if start_datetime <= datetime.now():
-                return JsonResponse({'available': False, 'message': 'Booking time must be in the future'})
+            now = timezone.now()
+
+            # Policy: at least 1 hour in advance and not more than one month ahead
+            if start_datetime <= now + timezone.timedelta(hours=BOOKING_MIN_ADVANCE_HOURS):
+                return JsonResponse({'available': False, 'message': 'Booking must be made at least 1 hour in advance'})
+
+            if start_datetime > now + timezone.timedelta(days=BOOKING_MAX_ADVANCE_DAYS):
+                return JsonResponse({'available': False, 'message': f'Booking cannot be made more than {BOOKING_MAX_ADVANCE_DAYS} days in advance'})
             
             # Check if end time is after start time
             if start_datetime >= end_datetime:
                 return JsonResponse({'available': False, 'message': 'End time must be after start time'})
             
-            # Check for conflicts
-            conflicts = Booking.objects.filter(
-                room=room,
+            duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
+            if duration_hours < BOOKING_MIN_DURATION_HOURS:
+                return JsonResponse({'available': False, 'message': f'Minimum booking duration is {BOOKING_MIN_DURATION_HOURS} hour'})
+            if duration_hours > BOOKING_MAX_DURATION_HOURS:
+                return JsonResponse({'available': False, 'message': f'Maximum booking duration is {BOOKING_MAX_DURATION_HOURS} hours'})
+
+            # Policy: user cannot have overlapping bookings across rooms
+            user_overlap = Booking.objects.filter(
+                user=request.user,
+                status='confirmed',
                 start_time__lt=end_datetime,
                 end_time__gt=start_datetime,
-                status__in=['confirmed']
+            )
+            if user_overlap.exists():
+                return JsonResponse({'available': False, 'message': 'You already have another booking in this time slot'})
+
+            # Check for room conflicts with buffer
+            buffer_delta = timezone.timedelta(minutes=BOOKING_BUFFER_MINUTES)
+            conflicts = Booking.objects.filter(
+                room=room,
+                status='confirmed',
+                start_time__lt=end_datetime + buffer_delta,
+                end_time__gt=start_datetime - buffer_delta,
             )
             
             if conflicts.exists():
@@ -2381,7 +2559,7 @@ def check_availability_ajax(request):
                 conflict_time = conflict.start_time.strftime('%H:%M')
                 return JsonResponse({
                     'available': False, 
-                    'message': f'Time slot conflicts with existing booking at {conflict_time}',
+                    'message': f'Time slot conflicts with an existing booking at {conflict_time}. A {BOOKING_BUFFER_MINUTES}-minute buffer is required.',
                     'conflict': {
                         'start_time': conflict.start_time.strftime('%H:%M'),
                         'end_time': conflict.end_time.strftime('%H:%M'),
@@ -2389,17 +2567,17 @@ def check_availability_ajax(request):
                     }
                 })
             
-            # Check daily booking limit
-            daily_bookings = Booking.objects.filter(
+            # Policy: max active bookings at any time
+            active_bookings = Booking.objects.filter(
                 user=request.user,
-                start_time__date=booking_date,
-                status__in=['confirmed']
+                status='confirmed',
+                end_time__gt=now,
             ).count()
-            
-            if daily_bookings >= 3:
+
+            if active_bookings >= BOOKING_MAX_ACTIVE_PER_USER:
                 return JsonResponse({
                     'available': False, 
-                    'message': 'You have reached the maximum number of bookings per day (3)'
+                    'message': f'You have reached the active booking limit ({BOOKING_MAX_ACTIVE_PER_USER})'
                 })
             
             # All checks passed
@@ -2509,7 +2687,7 @@ def get_buildings_ajax(request):
 @login_required
 @user_required
 def cancel_booking_view(request, booking_id):
-    """Cancel a booking - with 24-hour advance notice rule"""
+    """Cancel a booking with 3-hour notice policy and late cancellation tracking."""
     user_role = get_user_role(request.user)
     
     try:
@@ -2533,25 +2711,36 @@ def cancel_booking_view(request, booking_id):
                     })
                 return redirect('accounts:booked')
             
-            # Check 24-hour advance notice rule
+            # Check cancellation timing and late-cancel penalty
             time_until_booking = booking.start_time - current_time
-            minimum_notice = timedelta(hours=24)
-            
-            if time_until_booking < minimum_notice:
-                hours_left = time_until_booking.total_seconds() / 3600
-                if hours_left <= 0:
-                    error_msg = 'Cannot cancel booking that has already started or passed.'
-                else:
-                    error_msg = f'Cannot cancel booking. Must cancel at least 24 hours in advance. Only {hours_left:.1f} hours remaining.'
-                
+            minimum_notice = timedelta(hours=CANCELLATION_NOTICE_HOURS)
+
+            if time_until_booking.total_seconds() <= 0:
+                error_msg = 'Cannot cancel booking that has already started or passed.'
                 messages.error(request, error_msg)
-                
+
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
                         'success': False,
                         'message': error_msg
                     })
                 return redirect('accounts:booked')
+
+            late_cancellation = time_until_booking < minimum_notice
+            warning_issued = False
+            late_cancel_message = ''
+
+            if late_cancellation:
+                request.user.late_cancellation_count = (request.user.late_cancellation_count or 0) + 1
+                if request.user.late_cancellation_count % 2 == 0:
+                    request.user.cancellation_warning_count = (request.user.cancellation_warning_count or 0) + 1
+                    warning_issued = True
+
+                request.user.save(update_fields=['late_cancellation_count', 'cancellation_warning_count'])
+                late_cancel_message = (
+                    f'Late cancellation recorded (less than {CANCELLATION_NOTICE_HOURS} hours notice). '
+                    f'Total late cancellations: {request.user.late_cancellation_count}.'
+                )
             
             # All checks passed - cancel the booking
             booking.status = 'cancelled'
@@ -2567,12 +2756,21 @@ def cancel_booking_view(request, booking_id):
                 print(f"Error deleting calendar event: {e}")
             
             success_msg = f'Booking for {booking.room.name} on {booking.start_time.strftime("%Y-%m-%d at %H:%M")} has been cancelled.'
+            if late_cancel_message:
+                success_msg = f'{success_msg} {late_cancel_message}'
+            if warning_issued:
+                success_msg = (
+                    f'{success_msg} This is warning #{request.user.cancellation_warning_count} '
+                    '(issued every 2 late cancellations).'
+                )
             messages.success(request, success_msg)
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': True,
-                    'message': f'Booking for {booking.room.name} has been cancelled.'
+                    'message': success_msg,
+                    'late_cancellation': late_cancellation,
+                    'warning_issued': warning_issued,
                 })
             
             return redirect('accounts:booked')
@@ -2580,12 +2778,9 @@ def cancel_booking_view(request, booking_id):
         # GET request - show confirmation page
         current_time = timezone.now()
         time_until_booking = booking.start_time - current_time
-        minimum_notice = timedelta(hours=24)
-        
-        can_cancel = (
-            booking.status in ['confirmed'] and 
-            time_until_booking >= minimum_notice
-        )
+        minimum_notice = timedelta(hours=CANCELLATION_NOTICE_HOURS)
+
+        can_cancel = booking.status in ['confirmed'] and time_until_booking.total_seconds() > 0
         
         context = {
             'user': request.user,
@@ -2595,6 +2790,8 @@ def cancel_booking_view(request, booking_id):
             'current_time': current_time,
             'time_until_booking': time_until_booking,
             'hours_until_booking': time_until_booking.total_seconds() / 3600,
+            'late_cancellation': can_cancel and time_until_booking < minimum_notice,
+            'cancellation_notice_hours': CANCELLATION_NOTICE_HOURS,
         }
         
         return render(request, 'UserPage/cancelBooking.html', context)

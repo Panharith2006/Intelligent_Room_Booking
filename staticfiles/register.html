@@ -1,0 +1,252 @@
+{% load socialaccount %}
+{% load google_oauth_tags %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | Royal University of Phnom Penh</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'SignIn-RegisterPage/css/register.css' %}">
+</head>
+<body>
+    <div class="container">
+        <!-- Branding Section -->
+        <section class="brand-section">
+            <img src="https://upload.wikimedia.org/wikipedia/km/e/ee/Rupp_logo.png?20090803154844" alt="Royal University of Phnom Penh Logo" class="university-logo">
+            <div class="university-branding">
+                <h1 class="university-name"><font color="#00152f">Royal University of Phnom Penh</font></h1>
+                <p class="university-motto"><font color="#00152f">Excellence in Higher Education Since 1960</font></p>
+            </div>
+        </section>
+
+        <!-- Registration Section -->
+        <section class="registration-section">
+            <div class="registration-card">
+                <div class="registration-header">
+                    <h2 class="registration-title">Create Account</h2>
+                    <p class="registration-subtitle">Join the RUPP community</p>
+                    <div class="d-grid gap-2 my-3">
+                        {% google_oauth_configured as google_configured %}
+                        {% if google_configured %}
+                            {% safe_google_signup_url as google_signup_url %}
+                            <a href="{{ google_signup_url }}" class="google-login-btn" style="margin-bottom: 20px; display:flex;align-items:center;justify-content:center;gap:10px;" id="google-signup-btn">
+                                <svg class="google-icon" viewBox="0 0 24 24">
+                                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                </svg>
+                                Sign up with Google
+                            </a>
+                        {% endif %}
+                    </div>
+                    
+                </div>
+                
+                <!-- Django Messages -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="{% if message.tags == 'error' %}error-message{% else %}success-message{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <form id="registerForm" method="post" action="{% url 'accounts:register' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Name Fields -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="firstName">First Name</label>
+                            <input 
+                                type="text" 
+                                id="firstName" 
+                                name="firstName" 
+                                class="form-control" 
+                                placeholder="Enter first name" 
+                                required
+                                value="{{ request.POST.firstName|default:'' }}"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="lastName">Last Name</label>
+                            <input 
+                                type="text" 
+                                id="lastName" 
+                                name="lastName" 
+                                class="form-control" 
+                                placeholder="Enter last name" 
+                                required
+                                value="{{ request.POST.lastName|default:'' }}"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Email Field -->
+                    <div class="form-group">
+                        <label class="form-label" for="email">University Email</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-control" 
+                            placeholder="student@rupp.edu.kh" 
+                            required
+                            value="{{ request.POST.email|default:'' }}"
+                        >
+                    </div>
+
+                    <!-- Account Type -->
+                    <div class="mb-3">
+                        <label for="userRole" class="form-label">Account Type</label>
+                        <select class="form-select" id="userRole" name="userRole" required>
+                            <option value="">Select Account Type</option>
+                            <option value="admin" {% if request.POST.userRole == 'admin' %}selected{% endif %}>Administrator</option>
+                            <option value="guest" {% if request.POST.userRole == 'guest' %}selected{% endif %}>User</option>
+                        </select>
+                        <div class="form-text text-muted">Select your role at the university</div>
+                    </div>
+
+                    <!-- Faculty and Department -->
+                    <div class="form-row">
+                        
+                    </div>
+
+                    <!-- Password Field -->
+                    <div class="form-group">
+                        <label class="form-label" for="password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-control" 
+                            placeholder="Create a strong password" 
+                            required
+                        >
+                        <div class="password-requirements">
+                            Password must be at least 8 characters with uppercase, lowercase, and number
+                        </div>
+                    </div>
+
+
+
+                    <!-- Confirm Password Field -->
+                    <div class="form-group">
+                        <label class="form-label" for="confirmPassword">Confirm Password</label>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirmPassword" 
+                            class="form-control" 
+                            placeholder="Confirm your password" 
+                            required
+                        >
+                    </div>
+
+                    <button type="submit" class="create-button">
+                        Create Account   
+                    </button>
+                </form>
+
+                <!-- Google Sign-up Option -->
+                {% load google_oauth_tags %}
+                {% google_oauth_configured as google_configured %}
+                {% if google_configured %}
+                <div class="divider">
+                    <span>or</span>
+                </div>
+
+                {% endif %}
+
+                <div class="secondary-actions">
+                    <p>Already have an account? <a href="{% url 'accounts:login' %}">Login here</a></p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Show message if Google login is not configured
+        document.addEventListener('DOMContentLoaded', function() {
+            var googleBtn = document.getElementById('google-login-btn');
+            if (googleBtn) {
+                googleBtn.addEventListener('click', function(e) {
+                    if (!googleBtn.getAttribute('href') || googleBtn.getAttribute('href') === '#') {
+                        e.preventDefault();
+                        alert('Google login is not configured. Please contact admin.');
+                    }
+                });
+            }
+        });
+        // Client-side validation before form submission
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Check if passwords match
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match. Please try again.');
+                return false;
+            }
+
+            // Validate password strength
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d@$!%*?&]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                e.preventDefault();
+                alert('Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.');
+                return false;
+            }
+
+            // Validate role selection
+            const role = document.getElementById('userRole').value;
+            if (!role) {
+                e.preventDefault();
+                alert('Please select a valid account type.');
+                return false;
+            }
+
+            // Form will submit normally to Django backend
+            return true;
+        });
+
+        // User role selection handler
+        document.getElementById('userRole').addEventListener('change', function() {
+            const role = this.value;
+            const adminNotice = document.querySelector('.admin-notice');
+            const facultyField = document.getElementById('faculty');
+            const departmentField = document.getElementById('department');
+            
+            // Show/hide admin notice
+            if (role === 'admin') {
+                if (adminNotice) {
+                    adminNotice.style.display = 'block';
+                }
+            } else {
+                if (adminNotice) {
+                    adminNotice.style.display = 'none';
+                }
+            }
+            
+            // Update faculty/department requirements
+            if (role === 'admin' || role === 'guest') {
+                facultyField.removeAttribute('required');
+                departmentField.removeAttribute('required');
+            } else {
+                facultyField.setAttribute('required', 'required');
+                departmentField.setAttribute('required', 'required');
+            }
+        });
+
+        // Dynamic department options based on faculty selection
+        document.getElementById('faculty').addEventListener('change', function() {
+            const faculty = this.value;
+            const departmentSelect = document.getElementById('department');
+            // Add your dynamic department logic here if needed
+        });
+    </script>
+</body>
+</html>

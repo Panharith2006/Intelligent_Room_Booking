@@ -24,6 +24,7 @@ class Room(models.Model):
     
     AVAILABILITY_STATUS = [
         ('available', 'Available'),
+        ('occupied', 'Occupied'),
         ('unavailable', 'Unavailable'),
     ]
     

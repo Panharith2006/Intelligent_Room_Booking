@@ -60,6 +60,20 @@
             {% endfor %}
         {% endif %}
 
+        {% if not profile_complete_for_booking %}
+            <div class="alert alert-warning" role="alert">
+                <strong>Profile incomplete:</strong> Please complete these fields before booking: {{ missing_profile_fields|join:", " }}.
+                <a href="{% url 'accounts:profile_setting' %}" class="alert-link">Update profile now</a>
+            </div>
+        {% endif %}
+
+        {% if booking_approval_status != 'approved' %}
+            <div class="alert alert-warning" role="alert">
+                <strong>Booking access {{ booking_approval_status }}:</strong>
+                Your lecturer verification is not approved yet. Please complete your profile and wait for admin approval before booking.
+            </div>
+        {% endif %}
+
         <form method="post" action="{% url 'accounts:create_booking' %}" id="bookingForm">
             {% csrf_token %}
             <div class="card">
@@ -130,7 +144,16 @@
                     <textarea name="notes" class="form-control" rows="3" placeholder="Any special requirements or notes..."></textarea>
                 </div>
                 
-                <button type="submit" class="booking-btn" id="bookingBtn">
+                <div class="form-group">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="policyAgreement" name="policy_agreement" required>
+                        <label class="form-check-label" for="policyAgreement">
+                            I have read and agree to the <a href="{% url 'accounts:service' %}#policy" target="_blank">University Room Booking Policy and Terms</a>.
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="booking-btn" id="bookingBtn" {% if not profile_complete_for_booking or booking_approval_status != 'approved' %}disabled title="Complete verification and wait for admin approval"{% endif %}>
                     <i class="fas fa-calendar-check"></i> Book Now
                 </button>
             </div>

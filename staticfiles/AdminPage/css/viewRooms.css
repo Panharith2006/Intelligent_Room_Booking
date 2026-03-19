@@ -1,0 +1,593 @@
+/* --- AI PATCH: Clean, Modern Room Table Styling --- */
+.room-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 18px rgba(60, 72, 88, 0.10);
+    overflow: hidden;
+    margin-bottom: 0;
+    font-size: 1rem;
+    margin-top: 0;
+}
+.room-table th, .room-table td {
+    padding: 1.1rem 0.9rem;
+    text-align: left;
+}
+.room-table th {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    font-weight: 700;
+    border: none;
+    font-size: 1rem;
+    letter-spacing: 0.03em;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+}
+.room-table tr {
+    transition: background 0.18s, box-shadow 0.18s;
+}
+.room-table tr:nth-child(even) {
+    background: #fafbfc;
+}
+.room-table tr:hover {
+    background: #f0f6ff;
+    box-shadow: 0 2px 8px rgba(60, 72, 88, 0.10);
+}
+.room-table td {
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+    vertical-align: middle;
+}
+.room-table tr:last-child td {
+    border-bottom: none;
+}
+.room-table .badge {
+    font-size: 0.92rem;
+    padding: 0.32em 0.8em;
+    border-radius: 10px;
+    font-weight: 600;
+    box-shadow: 0 1px 4px rgba(60, 72, 88, 0.07);
+}
+.room-table .badge.bg-success {
+    background: #e0f7e9 !important;
+    color: #1b7f3a !important;
+    border: 1px solid #b6e7c7;
+}
+.room-table .badge.bg-danger {
+    background: #ffeaea !important;
+    color: #c81e1e !important;
+    border: 1px solid #f7bebe;
+}
+.room-table .badge.bg-secondary {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb;
+}
+.room-table .btn {
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    box-shadow: none;
+}
+.room-table .btn:hover {
+    box-shadow: 0 2px 8px rgba(60, 72, 88, 0.10);
+    transform: translateY(-2px);
+}
+.room-table .btn-outline-primary {
+    border: 2px solid #667eea;
+    color: #667eea;
+    background: transparent;
+}
+.room-table .btn-outline-primary:hover {
+    background: #667eea;
+    color: #fff;
+    border-color: #667eea;
+}
+.room-table .btn-outline-danger {
+    border: 2px solid #ff4b2b;
+    color: #ff4b2b;
+    background: transparent;
+}
+.room-table .btn-outline-danger:hover {
+    background: #ff4b2b;
+    color: #fff;
+    border-color: #ff4b2b;
+}
+.room-table .btn-outline-secondary {
+    border: 2px solid #764ba2;
+    color: #764ba2;
+    background: transparent;
+}
+.room-table .btn-outline-secondary:hover {
+    background: #764ba2;
+    color: #fff;
+    border-color: #764ba2;
+}
+/* --- End AI PATCH --- */
+/* View Rooms Page Enhanced Styling */
+/* Header styles removed - using dedicated admin_header.css */
+
+html, body {
+    background-color: #f8f9fa !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    min-height: 100vh;
+}
+
+body.admin-view-rooms {
+    background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%) !important;
+    background-attachment: fixed;
+}
+
+.container {
+    max-width: 1400px !important;
+    margin: 0 auto !important;
+    padding: 2rem 1rem !important;
+}
+
+/* Page Header */
+.page-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.page-header h2 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.page-header .text-muted {
+    color: #6c757d !important;
+    font-size: 1.1rem;
+}
+
+/* Statistics Cards */
+.row.mb-4 .col-md-3 {
+    margin-bottom: 1rem;
+}
+
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+}
+
+.card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+.card-body h4 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.card-body small {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.card-body .d-flex {
+    align-items: center;
+    justify-content: space-between;
+}
+
+.card-body .fa-2x {
+    opacity: 0.8;
+}
+
+/* Enhanced Background Gradients */
+.bg-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.bg-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+}
+
+.bg-warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%) !important;
+}
+
+.bg-info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%) !important;
+}
+
+/* Filter Section */
+.row.mb-4 {
+    margin-bottom: 2rem !important;
+}
+
+.input-group {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-control {
+    border: none;
+    padding: 12px 15px;
+    font-size: 1rem;
+    background-color: white;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.form-select {
+    border: none;
+    padding: 12px 15px;
+    font-size: 1rem;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.25rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-outline-secondary {
+    border: none;
+    background: #667eea;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 0 10px 10px 0;
+    transition: all 0.3s ease;
+}
+
+.btn-outline-secondary:hover {
+    background: #5a67d8;
+    transform: translateY(-2px);
+}
+
+/* Enhanced Table Styling */
+.table-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table thead th {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 1.2rem;
+    border: none;
+    font-size: 0.9rem;
+}
+
+.table tbody td {
+    padding: 1.2rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f3f4;
+    font-size: 0.95rem;
+}
+
+.table tbody tr:hover {
+    background: linear-gradient(135deg, #f8f9ff 0%, #e8f0fe 100%);
+    transition: all 0.3s ease;
+}
+
+.table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Enhanced Badge Styling */
+.badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%) !important;
+    color: white;
+}
+
+.badge.bg-danger {
+    background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%) !important;
+    color: white;
+}
+
+.badge.bg-secondary {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%) !important;
+    color: white;
+}
+
+/* Enhanced Button Styling */
+.btn {
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-outline-primary {
+    border: 2px solid #667eea;
+    color: #667eea;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* Room Types Summary Cards */
+.mt-4 .card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.mt-4 .card-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-bottom: none;
+}
+
+.mt-4 .card-header h5, .mt-4 .card-header h6 {
+    margin: 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mt-4 .card-body {
+    padding: 1.5rem;
+}
+
+.mt-4 .card-body .card {
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.mt-4 .card-body .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.mt-4 .card-body .card-header {
+    background: #f8f9fa;
+    color: #495057;
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.mt-4 .card-body .card-body {
+    padding: 1rem;
+}
+
+.list-unstyled li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.list-unstyled li:last-child {
+    border-bottom: none;
+}
+
+.list-unstyled li i {
+    color: #667eea;
+    margin-right: 0.5rem;
+}
+
+/* Footer */
+.footer {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 0;
+    margin-top: 3rem;
+}
+
+.footer .container {
+    text-align: center;
+}
+
+.footer p {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* Room Card Enhancements */
+.room-card .card-body {
+    padding: 1.5rem;
+}
+
+.room-card .card-title {
+    color: #2c3e50;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.room-image {
+    position: relative;
+    overflow: hidden;
+}
+
+.room-image::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(102, 126, 234, 0.8), rgba(118, 75, 162, 0.8));
+    z-index: 1;
+}
+
+.room-image i {
+    z-index: 2;
+    position: relative;
+}
+
+.availability-badge {
+    z-index: 3;
+}
+
+/* Enhanced table styles */
+.table-hover tbody tr:hover {
+    background-color: rgba(102, 126, 234, 0.05);
+}
+
+/* Room type badges */
+.room-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 50px;
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+/* Capacity indicator */
+.capacity-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+/* Action buttons in table */
+.btn-group-sm > .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    border-radius: 4px;
+}
+
+.btn-outline-primary {
+    border-color: #667eea;
+    color: #667eea;
+}
+
+.btn-outline-primary:hover {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    .page-header h2 {
+        font-size: 2rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        border-radius: 10px;
+    }
+    
+    .col-md-3,
+    .col-md-4,
+    .col-md-6 {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Animation for loading states */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Custom scrollbar */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: #5a67d8;
+}

@@ -8,6 +8,63 @@
     <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAABILAAASCwAAAAAAAAAAAAD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AP///wD///8A////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            #usersTable {
+                min-width: 1600px;
+            }
+
+            #usersTable th,
+            #usersTable td {
+                vertical-align: middle;
+            }
+
+            #usersTable .col-name {
+                min-width: 180px;
+                white-space: nowrap;
+                font-weight: 600;
+            }
+
+            #usersTable .col-email {
+                min-width: 230px;
+                white-space: nowrap;
+            }
+
+            #usersTable .col-photo {
+                min-width: 80px;
+                text-align: center;
+            }
+
+            #usersTable .col-lecturer-id {
+                min-width: 120px;
+                white-space: nowrap;
+            }
+
+            #usersTable .col-faculty {
+                min-width: 120px;
+                white-space: nowrap;
+            }
+
+            #usersTable .col-department {
+                min-width: 230px;
+                white-space: normal;
+                line-height: 1.3;
+            }
+
+            #usersTable .col-date {
+                min-width: 120px;
+                white-space: nowrap;
+            }
+
+            #usersTable .col-actions {
+                min-width: 290px;
+            }
+
+            #usersTable .btn-group {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+            }
+        </style>
 </head>
 
 <body data-page="user-management" data-url="{{ request.path }}">
@@ -39,7 +96,7 @@
 
         <!-- User Statistics -->
         <div class="row mb-4">
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
@@ -54,7 +111,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
@@ -69,7 +126,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
@@ -84,7 +141,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-md">
                 <div class="card bg-primary text-white">
                     <div class="card-body">
                         <div class="d-flex justify-content-between">
@@ -94,6 +151,21 @@
                             </div>
                             <div>
                                 <i class="fas fa-user fa-2x"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md">
+                <div class="card bg-warning text-dark">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h4>{{ pending_approval_count }}</h4>
+                                <small>Pending Approval</small>
+                            </div>
+                            <div>
+                                <i class="fas fa-user-clock fa-2x"></i>
                             </div>
                         </div>
                     </div>
@@ -125,6 +197,14 @@
                     <option value="inactive">Inactive</option>
                 </select>
             </div>
+            <div class="col-md-3">
+                <select class="form-select" id="approvalFilter">
+                    <option value="">All Booking Access</option>
+                    <option value="pending">Pending</option>
+                    <option value="approved">Approved</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
         </div>
 
         <!-- Users Table -->
@@ -136,13 +216,16 @@
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table table-striped" id="usersTable">
+                            <table class="table table-striped table-hover align-middle" id="usersTable">
                                 <thead>
                                     <tr>
                                         <th>Name</th>
                                         <th>Email</th>
+                                        <th>Photo</th>
+                                        <th>Lecturer ID</th>
                                         <th>Role</th>
                                         <th>Status</th>
+                                        <th>Booking Access</th>
                                         <th>Faculty</th>
                                         <th>Department</th>
                                         <th>Date Joined</th>
@@ -152,9 +235,20 @@
                                 <tbody>
                                     {% for user_item in all_users %}
                                     <tr data-role="{% if user_item.is_admin %}Admin{% else %}User{% endif %}" 
-                                        data-status="{% if user_item.is_active %}active{% else %}inactive{% endif %}">
-                                        <td>{{ user_item.first_name }} {{ user_item.last_name }}</td>
-                                        <td>{{ user_item.email }}</td>
+                                        data-status="{% if user_item.is_active %}active{% else %}inactive{% endif %}"
+                                        data-approval="{{ user_item.booking_approval_status }}">
+                                        <td class="col-name">{{ user_item.first_name }} {{ user_item.last_name }}</td>
+                                        <td class="col-email">{{ user_item.email }}</td>
+                                        <td class="col-photo">
+                                            {% if user_item.profile_picture %}
+                                                <a href="{{ user_item.profile_picture.url }}" target="_blank" rel="noopener noreferrer" title="View full image">
+                                                    <img src="{{ user_item.profile_picture.url }}" alt="{{ user_item.get_full_name }} profile photo" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:1.5px solid #d9e9ff;">
+                                                </a>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">No Photo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="col-lecturer-id">{{ user_item.student_id|default:"N/A" }}</td>
                                         <td>
                                             {% if user_item.is_admin %}
                                                 <span class="badge bg-danger">Admin</span>
@@ -169,10 +263,19 @@
                                                 <span class="badge bg-danger">Inactive</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ user_item.faculty|default:"N/A" }}</td>
-                                        <td>{{ user_item.department|default:"N/A" }}</td>
-                                        <td>{{ user_item.date_joined|date:"M d, Y" }}</td>
                                         <td>
+                                            {% if user_item.booking_approval_status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                            {% elif user_item.booking_approval_status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="col-faculty">{{ user_item.faculty|default:"N/A" }}</td>
+                                        <td class="col-department">{{ user_item.department|default:"N/A" }}</td>
+                                        <td class="col-date">{{ user_item.date_joined|date:"M d, Y" }}</td>
+                                        <td class="col-actions">
                                             {% if user_item.id != user.id %}
                                                 <div class="btn-group" role="group">
                                                     {% if user_item.is_active %}
@@ -186,6 +289,29 @@
                                                             <i class="fas fa-user-check"></i> Activate
                                                         </button>
                                                     {% endif %}
+
+                                                    {% if not user_item.is_admin %}
+                                                        {% if user_item.booking_approval_status != 'approved' %}
+                                                            <button class="btn btn-sm btn-outline-primary"
+                                                                    onclick="toggleStatusAjax({{ user_item.id }}, 'approve_booking_access', '{{ user_item.first_name }} {{ user_item.last_name }}', true)">
+                                                                <i class="fas fa-check-circle"></i> Approve
+                                                            </button>
+                                                        {% endif %}
+
+                                                        {% if user_item.booking_approval_status != 'rejected' %}
+                                                            <button class="btn btn-sm btn-outline-warning"
+                                                                    onclick="toggleStatusAjax({{ user_item.id }}, 'reject_booking_access', '{{ user_item.first_name }} {{ user_item.last_name }}', false)">
+                                                                <i class="fas fa-ban"></i> Reject
+                                                            </button>
+                                                        {% endif %}
+
+                                                        {% if user_item.booking_approval_status != 'pending' %}
+                                                            <button class="btn btn-sm btn-outline-secondary"
+                                                                    onclick="toggleStatusAjax({{ user_item.id }}, 'set_booking_pending', '{{ user_item.first_name }} {{ user_item.last_name }}', false)">
+                                                                <i class="fas fa-clock"></i> Set Pending
+                                                            </button>
+                                                        {% endif %}
+                                                    {% endif %}
                                                 </div>
                                             {% else %}
                                                 <span class="badge bg-info">Current User</span>
@@ -194,7 +320,7 @@
                                     </tr>
                                     {% empty %}
                                     <tr>
-                                        <td colspan="8" class="text-center">No users found</td>
+                                        <td colspan="11" class="text-center">No users found</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -295,24 +421,30 @@
             const searchInput = document.getElementById('userSearch');
             const roleFilter = document.getElementById('roleFilter');
             const statusFilter = document.getElementById('statusFilter');
+            const approvalFilter = document.getElementById('approvalFilter');
             const tableRows = document.querySelectorAll('#usersTable tbody tr');
 
             function filterUsers() {
                 const searchTerm = searchInput.value.toLowerCase();
                 const selectedRole = roleFilter.value;
                 const selectedStatus = statusFilter.value;
+                const selectedApproval = approvalFilter.value;
 
                 tableRows.forEach(row => {
+                    if (row.cells.length < 11) return;
+
                     const userName = row.cells[0].textContent.toLowerCase();
                     const userEmail = row.cells[1].textContent.toLowerCase();
                     const userRole = row.getAttribute('data-role');
                     const userStatus = row.getAttribute('data-status');
+                    const userApproval = row.getAttribute('data-approval');
 
                     const matchesSearch = userName.includes(searchTerm) || userEmail.includes(searchTerm);
                     const matchesRole = !selectedRole || userRole === selectedRole;
                     const matchesStatus = !selectedStatus || userStatus === selectedStatus;
+                    const matchesApproval = !selectedApproval || userApproval === selectedApproval;
 
-                    if (matchesSearch && matchesRole && matchesStatus) {
+                    if (matchesSearch && matchesRole && matchesStatus && matchesApproval) {
                         row.style.display = '';
                     } else {
                         row.style.display = 'none';
@@ -323,6 +455,7 @@
             searchInput.addEventListener('input', filterUsers);
             roleFilter.addEventListener('change', filterUsers);
             statusFilter.addEventListener('change', filterUsers);
+            approvalFilter.addEventListener('change', filterUsers);
         });
     </script>
 </body>

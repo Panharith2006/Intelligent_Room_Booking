@@ -7,6 +7,7 @@ app_name = 'accounts'
 urlpatterns = [
     # User page URLs
     path('about-us/', views.about_us_view, name='about_us'),
+    path('policy/', views.booking_policy_view, name='booking_policy'),
     path('service/', views.service_view, name='service'),
     path('booking/', views.booking_view, name='booking'),
 

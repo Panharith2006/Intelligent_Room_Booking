@@ -27,53 +27,111 @@
         </div>
     </div>
 
-    <main id="profile" class="page active">
+    <main class="main-container" id="profile">
         <div class="page-header">
-            <h1><i class="fas fa-user-cog"></i> Profile Settings</h1>
-            <p>Update your personal information and account preferences</p>
+            <h1><i class="fas fa-user-cog"></i> Edit Lecturer Profile</h1>
+            <p>Complete your verification details for room booking approval</p>
         </div>
-        <div class="profile-form">
-            <form method="post" action="{% url 'accounts:profile_setting' %}" class="profile-form" id="profileForm">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="update_profile" />
-                <div class="form-group">
-                    <label for="id_first_name">First Name</label>
-                    {{ form.first_name }}
-                </div>
-                <div class="form-group">
-                    <label for="id_last_name">Last Name</label>
-                    {{ form.last_name }}
-                </div>
-                <div class="form-group">
-                    <label for="id_email">Email</label>
-                    <input type="email" id="id_email" name="email" value="{{ user.email }}" readonly>
-                    <input type="hidden" name="email" value="{{ user.email }}">
-                
-                <div class"="form-group">
-                    <label for="id_student_id">Student ID</label>
-                    {{ form.student_id }}
-                </div>
-                <div class="form-group">
-                    <label for="id_faculty">Faculty</label>
-                    {{ form.faculty }}
-                </div>
-                <div class="form-group">
-                    <label for="id_department">Department</label>
-                    {{ form.department }}
-                </div>
-                <div class="form-group">
-                    <label for="id_phone_number">Phone Number</label>
-                    {{ form.phone_number }}
-                </div>
-                <div class="form-actions">
-                    <div style="display: flex; justify-content: space-between; gap: 10px;">
-                        <a href="{% url 'accounts:setting' %}" class="btn btn-outline-primary" id="backBtn" style="min-width:140px;border-radius:6px;border-width:2px;text-decoration:none;">Back to Profile</a>
-                        <button type="submit" class="btn btn-outline-primary" id="updateBtn" style="min-width:140px;border-radius:6px;border-width:2px;">Update Profile</button>
+
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="message {{ message.tags }}">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+                        {{ message }}
+                        <button type="button" class="close-message" onclick="this.parentElement.remove()">&times;</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <section class="edit-card">
+            <div class="approval-banner status-{{ user.booking_approval_status }}">
+                <div class="status-left">
+                    <i class="fas {% if user.booking_approval_status == 'approved' %}fa-check-circle{% elif user.booking_approval_status == 'rejected' %}fa-times-circle{% else %}fa-hourglass-half{% endif %}"></i>
+                    <div>
+                        <strong>Booking Access: {{ user.get_booking_approval_status_display }}</strong>
+                        <p>Admin reviews Lecturer ID, Faculty, Department, Phone number, and Profile photo.</p>
                     </div>
                 </div>
-                <div id="updateMessage" style="margin-top:10px;"></div>
+            </div>
+
+            <form method="post" action="{% url 'accounts:profile_setting' %}" class="profile-form" id="profileForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_profile">
+
+                <div class="form-section">
+                    <h3><i class="fas fa-id-card"></i> Personal Information</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="id_first_name">First Name</label>
+                            {{ form.first_name }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_last_name">Last Name</label>
+                            {{ form.last_name }}
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="id_email">Email</label>
+                            {{ form.email }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3><i class="fas fa-user-check"></i> Lecturer Verification</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="id_student_id">Lecturer ID</label>
+                            {{ form.student_id }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_faculty">Faculty</label>
+                            {{ form.faculty }}
+                        </div>
+                        <div class="form-group">
+                            <label for="id_department">Department</label>
+                            {{ form.department }}
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="id_phone_number">Phone Number</label>
+                            {{ form.phone_number }}
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="profilePicture">Profile Photo</label>
+                            <div class="photo-upload-wrap">
+                                <div class="photo-preview-box" style="width:48px;height:48px;">
+                                    <img id="profilePreview" src="{% if user.profile_picture %}{{ user.profile_picture.url }}{% else %}https://cdn-icons-png.flaticon.com/512/147/147144.png{% endif %}" alt="Profile Preview" class="photo-preview-img" style="width:48px;height:48px;object-fit:cover;">
+                                </div>
+                                <div class="photo-upload-actions">
+                                    {{ form.profile_picture }}
+                                    <input type="hidden" id="clearProfilePicture" name="clear_profile_picture" value="0">
+                                    <div class="photo-upload-buttons">
+                                        <label for="profilePicture" class="action-btn secondary upload-trigger">
+                                            <i class="fas fa-upload"></i> Choose Photo
+                                        </label>
+                                        <button type="button" class="action-btn danger upload-trigger" id="clearPhotoBtn" {% if not user.profile_picture %}style="display:none;"{% endif %}>
+                                            <i class="fas fa-trash"></i> Clear Photo
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <a href="{% url 'accounts:setting' %}" class="action-btn secondary" id="backBtn">
+                        <i class="fas fa-arrow-left"></i> Back to Settings
+                    </a>
+                    <button type="submit" class="action-btn primary" id="updateBtn">
+                        <i class="fas fa-save"></i> Update Profile
+                    </button>
+                </div>
+
+                <div id="updateMessage" class="update-message"></div>
             </form>
-        </div>
+        </section>
     </main>
     <script>
     document.getElementById('profileForm').onsubmit = function(e) {
@@ -81,6 +139,11 @@
         var form = this;
         var formData = new FormData(form);
         var url = form.getAttribute('action');
+        var btn = document.getElementById('updateBtn');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
         fetch(url, {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -98,11 +161,18 @@
                 let errorMsg = data.message;
                 if (data.errors) {
                     try {
-                        const errors = JSON.parse(data.errors);
+                        const errors = typeof data.errors === 'string' ? JSON.parse(data.errors) : data.errors;
                         errorMsg += '<ul>';
                         for (const field in errors) {
-                            errors[field].forEach(e => {
-                                errorMsg += `<li>${field}: ${e.message}</li>`;
+                            const fieldErrors = Array.isArray(errors[field]) ? errors[field] : [errors[field]];
+                            fieldErrors.forEach(e => {
+                                const message = (typeof e === 'string')
+                                    ? e
+                                    : (e && typeof e.message === 'string')
+                                        ? e.message
+                                        : JSON.stringify(e);
+                                const displayField = field === '__all__' ? 'Error' : field;
+                                errorMsg += `<li>${displayField}: ${message}</li>`;
                             });
                         }
                         errorMsg += '</ul>';
@@ -110,11 +180,69 @@
                 }
                 msgDiv.innerHTML = '<div class="alert alert-danger">' + errorMsg + '</div>';
             }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Update Profile';
         })
         .catch(() => {
             document.getElementById('updateMessage').innerHTML = '<div class="alert alert-danger">Update failed. Please try again.</div>';
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Update Profile';
         });
     };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var photoInput = document.getElementById('profilePicture');
+        var preview = document.getElementById('profilePreview');
+        var clearBtn = document.getElementById('clearPhotoBtn');
+        var clearInput = document.getElementById('clearProfilePicture');
+        var defaultPreview = 'https://cdn-icons-png.flaticon.com/512/147/147144.png';
+
+        if (photoInput) {
+            photoInput.addEventListener('change', function() {
+                var file = this.files && this.files[0] ? this.files[0] : null;
+                if (!file) {
+                    return;
+                }
+
+                if (clearInput) {
+                    clearInput.value = '0';
+                }
+
+                if (clearBtn) {
+                    clearBtn.style.display = 'inline-flex';
+                }
+
+                if (!file.type.startsWith('image/')) {
+                    this.value = '';
+                    return;
+                }
+
+                var reader = new FileReader();
+                reader.onload = function(evt) {
+                    if (preview) {
+                        preview.src = evt.target.result;
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (photoInput) {
+                    photoInput.value = '';
+                }
+                if (clearInput) {
+                    clearInput.value = '1';
+                }
+                if (preview) {
+                    preview.src = defaultPreview;
+                }
+                clearBtn.style.display = 'none';
+            });
+        }
+    });
     
     </script>
         {% include 'includes/chatbot_widget.html' %}

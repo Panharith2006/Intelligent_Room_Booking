@@ -158,7 +158,7 @@ class RoomBookingPlugin:
     )
     async def create_booking(
         self,
-        user_email: Annotated[str, "User email"],
+        user_id: Annotated[str, "Authenticated user ID"],
         date: Annotated[str, "YYYY-MM-DD"],
         start_time: Annotated[str, "HH:MM"],
         end_time: Annotated[str, "HH:MM"],
@@ -169,12 +169,10 @@ class RoomBookingPlugin:
             from django.contrib.auth import get_user_model
             User = get_user_model()
 
-            if not all([user_email, date, start_time, end_time]):
+            if not all([user_id, date, start_time, end_time]):
                 return "Missing required booking data."
 
-            user = await sync_to_async(
-                User.objects.filter(email=user_email).first
-            )()
+            user = await sync_to_async(User.objects.filter(id=int(user_id)).first)()
 
             if not user:
                 return "User not found. Please login."
@@ -218,15 +216,16 @@ class RoomBookingPlugin:
     )
     async def list_user_bookings(
         self,
-        user_email: Annotated[str, "User email"]
+        user_id: Annotated[str, "Authenticated user ID"]
     ) -> str:
         try:
             from django.contrib.auth import get_user_model
             User = get_user_model()
 
-            user = await sync_to_async(
-                User.objects.filter(email=user_email).first
-            )()
+            if not user_id:
+                return "Authentication required."
+
+            user = await sync_to_async(User.objects.filter(id=int(user_id)).first)()
 
             if not user:
                 return "User not found."

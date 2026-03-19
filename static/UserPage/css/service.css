@@ -92,11 +92,11 @@ body {
     width: 70%;
 }
 
-.active {
+.nav-item.active {
     color: var(--accent-color);
 }
 
-.active::after {
+.nav-item.active::after {
     width: 70%;
     background-color: var(--accent-color);
 }
@@ -249,6 +249,10 @@ h2 i {
     justify-content: space-between;
     align-items: center;
     transition: var(--transition);
+    width: 100%;
+    border: 0;
+    text-align: left;
+    font: inherit;
 }
 
 .faq-question:hover {
@@ -280,6 +284,21 @@ h2 i {
 .faq-answer p {
     color: #666;
     margin: 0;
+}
+
+#policy .policy-item .faq-answer {
+    padding: 1.5rem;
+    max-height: none;
+}
+
+#policy .faq-question h3 {
+    color: var(--dark-gray);
+}
+
+#policy .faq-answer,
+#policy .faq-answer li,
+#policy .faq-answer p {
+    color: #444;
 }
 
 /* Contact Section */
@@ -432,54 +451,6 @@ h2 i {
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
-/* Booking Guide */
-.booking-guide {
-    background: white;
-    padding: 3rem 2rem;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
-
-.guide-steps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-}
-
-.step {
-    display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: var(--light-gray);
-    border-radius: var(--border-radius);
-    border-left: 4px solid var(--secondary-color);
-}
-
-.step-number {
-    width: 50px;
-    height: 50px;
-    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: bold;
-    font-size: 1.2rem;
-    flex-shrink: 0;
-}
-
-.step-content h3 {
-    color: var(--dark-gray);
-    margin-bottom: 0.5rem;
-}
-
-.step-content p {
-    color: #666;
-    margin: 0;
-}
-
 /* Contact Form */
 .contact-form-section {
     background: white;
@@ -563,6 +534,17 @@ h2 i {
     transform: none;
 }
 
+.alert-success-message {
+    margin-bottom: 1rem;
+    color: var(--success-color);
+    font-weight: 500;
+    font-size: 1.1rem;
+}
+
+.success-icon {
+    margin-right: 8px;
+}
+
 /* Footer */
 footer {
     background: var(--dark-gray);
@@ -625,10 +607,6 @@ footer {
         grid-template-columns: 1fr;
     }
 
-    .guide-steps {
-        grid-template-columns: 1fr;
-    }
-
     .help-cards {
         grid-template-columns: 1fr;
     }
@@ -653,7 +631,6 @@ footer {
     .quick-help,
     .faq-section,
     .contact-section,
-    .booking-guide,
     .contact-form-section {
         padding: 2rem 1rem;
     }
@@ -669,11 +646,6 @@ footer {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.5rem;
-    }
-
-    .step {
-        flex-direction: column;
-        text-align: center;
     }
 
     .contact-item {

@@ -82,6 +82,9 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
         
         if not hasattr(user, 'department') or not user.department:
             user.department = ""  # Leave empty so user can add their department
+
+        if hasattr(user, 'booking_approval_status'):
+            user.booking_approval_status = 'pending'
         
         # Save the user
         user.save()

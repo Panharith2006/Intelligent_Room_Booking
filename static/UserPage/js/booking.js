@@ -163,13 +163,18 @@ function validateTimeRange() {
             return false;
         }
         
-        // Check if duration is reasonable (max 4 hours)
+        // Policy duration: 1 to 3 hours
         const start = new Date(`2000-01-01T${startTime}`);
         const end = new Date(`2000-01-01T${endTime}`);
         const diffHours = (end - start) / (1000 * 60 * 60);
         
-        if (diffHours > 4) {
-            showError('Maximum booking duration is 4 hours');
+        if (diffHours < 1) {
+            showError('Minimum booking duration is 1 hour');
+            return false;
+        }
+
+        if (diffHours > 3) {
+            showError('Maximum booking duration is 3 hours');
             return false;
         }
     }

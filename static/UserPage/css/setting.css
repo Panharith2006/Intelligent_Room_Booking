@@ -24,7 +24,7 @@
 
 body {
     font-family: 'Georgia', serif;
-    background-color: var(--light-gray);
+    background: radial-gradient(circle at top right, #eef7ff 0%, #f8f9fa 45%, #f4f7fb 100%);
     color: #000;
     line-height: 1.6;
 }
@@ -93,11 +93,11 @@ body {
     width: 70%;
 }
 
-.active {
+.nav-item.active {
     color: var(--accent-color);
 }
 
-.active::after {
+.nav-item.active::after {
     width: 70%;
     background-color: var(--accent-color);
 }
@@ -113,7 +113,10 @@ body {
 .page-header {
     text-align: center;
     margin-bottom: 3rem;
-    padding: 2rem 0;
+    padding: 2rem;
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(0, 51, 102, 0.06), rgba(52, 152, 219, 0.1));
+    border: 1px solid rgba(52, 152, 219, 0.2);
 }
 
 .page-header h1 {
@@ -191,6 +194,8 @@ body {
     border-radius: 15px;
     padding: 2.5rem;
     margin-bottom: 3rem;
+    border-top: 6px solid transparent;
+    border-image: linear-gradient(90deg, var(--primary-color), var(--secondary-color), #7bc8ff) 1;
 }
 
 .profile-left {
@@ -217,7 +222,7 @@ body {
     position: absolute;
     bottom: 10px;
     right: 10px;
-    background: var(--success-color);
+    background: linear-gradient(135deg, var(--success-color), #2ecc71);
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 20px;
@@ -273,9 +278,13 @@ body {
 .info-section {
     margin-bottom: 2rem;
     padding: 1.5rem;
-    background: var(--light-gray);
+    background: linear-gradient(180deg, #f9fcff 0%, #f5f8fc 100%);
     border-radius: var(--border-radius);
     border-left: 4px solid var(--secondary-color);
+}
+
+.info-section:nth-child(2) {
+    border-left-color: var(--primary-color);
 }
 
 .info-section h3 {
@@ -300,6 +309,12 @@ body {
     background: white;
     border-radius: var(--border-radius);
     border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.info-row:hover {
+    border-color: rgba(52, 152, 219, 0.35);
+    box-shadow: 0 4px 12px rgba(52, 152, 219, 0.08);
 }
 
 .info-row .label {
@@ -391,13 +406,54 @@ body {
 }
 
 .action-btn.primary {
-    background-color: var(--primary-color);
+    background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
     color: white;
+    max-width: 320px;
+    margin: 0 auto;
 }
 
 .action-btn.primary:hover {
-    background-color: #002244;
+    background: linear-gradient(135deg, #2f90cf, #002b57);
     transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(52, 152, 219, 0.25);
+}
+
+.edit-profile-action {
+    margin: 2rem 0;
+    text-align: center;
+}
+
+.action-btn-lg {
+    font-size: 1.1rem;
+    padding: 0.85rem 2rem;
+}
+
+.approval-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+}
+
+.approval-approved {
+    background: rgba(39, 174, 96, 0.12);
+    border-color: rgba(39, 174, 96, 0.35);
+    color: #1f7a43;
+}
+
+.approval-pending {
+    background: rgba(243, 156, 18, 0.14);
+    border-color: rgba(243, 156, 18, 0.35);
+    color: #8d5a06;
+}
+
+.approval-rejected {
+    background: rgba(231, 76, 60, 0.12);
+    border-color: rgba(231, 76, 60, 0.35);
+    color: #a5281b;
 }
 
 .action-btn.secondary {

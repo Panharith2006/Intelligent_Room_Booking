@@ -18,14 +18,18 @@ function cancelBooking(bookingId) {
         console.log('Current time:', currentTime);
         console.log('Hours until booking:', hoursUntilBooking);
         
-        // Check 24-hour rule
-        if (hoursUntilBooking < 24) {
-            if (hoursUntilBooking <= 0) {
-                alert('Cannot cancel booking that has already started.');
-            } else {
-                alert(`Cannot cancel booking. Must cancel at least 24 hours in advance. Only ${hoursUntilBooking.toFixed(1)} hours remaining.`);
-            }
+        // Block only if booking has started or passed.
+        // Late cancellations (<3h) are allowed but penalized server-side.
+        if (hoursUntilBooking <= 0) {
+            alert('Cannot cancel booking that has already started.');
             return;
+        }
+
+        if (hoursUntilBooking < 3) {
+            const proceed = confirm(`This is a late cancellation (less than 3 hours before start). A penalty record may be added. Continue?`);
+            if (!proceed) {
+                return;
+            }
         }
     } else {
         console.log('Cancel button not found, proceeding without time check');

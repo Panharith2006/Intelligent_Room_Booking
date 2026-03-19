@@ -45,8 +45,8 @@
                         <i class="fas fa-book"></i>
                     </div>
                     <h3>How to Book a Room</h3>
-                    <p>Step-by-step guide to booking your perfect room</p>
-                    <a href="#booking-guide" class="help-link">Learn More</a>
+                    <p>Go directly to the booking form and submit your request</p>
+                    <a href="{% url 'accounts:booking' %}" class="help-link">Go to Booking</a>
                 </div>
                 <div class="help-card">
                     <div class="help-icon">
@@ -75,41 +75,108 @@
             </div>
         </section>
 
-        <!-- FAQ Section -->
-        <section class="faq-section">
-            <h2><i class="fas fa-question-circle"></i> Frequently Asked Questions</h2>
-            <div class="faq-container">
-                <div class="faq-item">
-                    <div class="faq-question" onclick="toggleFAQ(this)">
-                        <h3>How do I book a room?</h3>
-                        <i class="fas fa-chevron-down"></i>
+        <!-- Lecturer Booking Policy Section -->
+        <section class="faq-section" id="policy">
+            <h2><i class="fas fa-gavel"></i> Lecturer Room Booking Policy</h2>
+            <div class="faq-container" style="max-width: 1000px; margin: 0 auto;">
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>1. Booking Time Policy</h3>
                     </div>
-                    <div class="faq-answer">
-                        <p>To book a room, navigate to the Booking page, select your preferred room type, date, and time. Fill in the required information and submit your booking request. You'll receive a confirmation email once approved.</p>
-                    </div>
-                </div>
-                <div class="faq-item">
-                    <div class="faq-question" onclick="toggleFAQ(this)">
-                        <h3>Can I cancel or modify my booking?</h3>
-                        <i class="fas fa-chevron-down"></i>
-                    </div>
-                    <div class="faq-answer">
-                        <p>Yes, you can cancel or modify your booking up to 24 hours before the scheduled time. Go to your Booked page and select the booking you want to change.</p>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Booking can be submitted at any time (24/7).</li>
+                            <li>Booking window: at least 1 hour before start and not more than 1 month ahead.</li>
+                            <li>Session duration must be between 1 and 3 hours.</li>
+                            <li>Booking in the past is not allowed.</li>
+                        </ul>
                     </div>
                 </div>
-                <div class="faq-item">
-                    <div class="faq-question" onclick="toggleFAQ(this)">
-                        <h3>What are the room booking policies?</h3>
-                        <i class="fas fa-chevron-down"></i>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>2. Booking Limit Policy</h3>
                     </div>
-                    <div class="faq-answer">
-                        <p>Rooms must be booked at least 2 hours in advance. Maximum booking duration is 4 hours. Late cancellations may result in booking restrictions. Please respect the facilities and clean up after use.</p>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Each lecturer may hold up to 5 active bookings at one time.</li>
+                            <li>A new booking is allowed when an earlier active booking is completed or cancelled.</li>
+                            <li>Consecutive bookings in the same room cannot exceed the maximum per-session duration rule.</li>
+                            <li>A lecturer cannot book multiple rooms in the same time slot.</li>
+                        </ul>
                     </div>
                 </div>
-                <div class="faq-item">
-                    
-                    <div class="faq-answer">
-                        <p>Go to the Settings page and select "Change Password". You'll need to enter your current password and set a new one. Make sure your new password meets the security requirements.</p>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>3. Cancellation and Warning Policy</h3>
+                    </div>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Standard cancellation should be made at least 3 hours before start time.</li>
+                            <li>Late cancellation can still be processed but is recorded as a penalty.</li>
+                            <li>Every 2 late cancellations triggers an admin warning record.</li>
+                            <li>Admin may cancel bookings for maintenance or emergency reasons.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>4. Room Usage and Availability Policy</h3>
+                    </div>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Room schedule must clearly show available, occupied, and unavailable periods.</li>
+                            <li>Room state can be controlled by admin (including maintenance status).</li>
+                            <li>Room capacity limits must be respected for every booking.</li>
+                            <li>A short turnover buffer between bookings is enforced; lecturers should leave at least 5 minutes before end time.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>5. Conflict and Validation Policy</h3>
+                    </div>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Double booking is automatically blocked.</li>
+                            <li>Overlapping time slots are not allowed.</li>
+                            <li>Availability is validated before confirmation.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>6. Security, AI Usage, and Data Privacy</h3>
+                    </div>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Lecturers are responsible for damages during booking time.</li>
+                            <li>Booking logs and activity records are kept for transparency and accountability.</li>
+                            <li>Misuse may lead to account suspension.</li>
+                            <li>AI assistant suggestions are advisory only; final confirmation depends on system validation.</li>
+                            <li>Personal data is stored securely in university systems and not shared with unauthorized third parties.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item policy-item">
+                    <div class="faq-question">
+                        <h3>7. Terms and Lecturer Profile Requirements</h3>
+                    </div>
+                    <div class="faq-answer" style="display:block; max-height:none; overflow:visible; padding:1.5rem;">
+                        <ul>
+                            <li>Rooms must be used for academic or university-related purposes only.</li>
+                            <li>No damage to equipment or property is allowed.</li>
+                            <li>Cleanliness must be maintained; furniture should be returned to original arrangement.</li>
+                            <li>If AC is used, it must be turned off before leaving.</li>
+                            <li>Before booking, lecturer profile must be complete and approved by admin.</li>
+                            <li>Required verification fields: Lecturer ID, Department, Faculty, Phone number, and Photo.</li>
+                            <li>Google OAuth login is supported; only approved lecturer accounts can book rooms.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -151,7 +218,8 @@
                         <li><a href="{% url 'accounts:about_us' %}"><i class="fas fa-users"></i> About Us</a></li>
                         <li><a href="{% url 'accounts:booking' %}"><i class="fas fa-calendar-check"></i> Room Booking</a></li>
                         <li><a href="{% url 'accounts:booked' %}"><i class="fas fa-list"></i> My Bookings</a></li>
-                        <li><a href="#faq"><i class="fas fa-question-circle"></i> Help / FAQ</a></li>
+                        <li><a href="#policy"><i class="fas fa-gavel"></i> Lecturer Booking Policy</a></li>
+                        <li><a href="#contact"><i class="fas fa-envelope"></i> Contact Information</a></li>
                         {% comment %} <li><a href="{% url 'admin:index' %}"><i class="fas fa-user-shield"></i> Admin Login</a></li> {% endcomment %}
                     </ul>
                 </div>
@@ -173,62 +241,32 @@
                         </div>
                     </div>
 
-                    <h3><i class="fas fa-shield-alt"></i> Legal & Policy</h3>
+                    <h3><i class="fas fa-shield-alt"></i> Policy & Help</h3>
                     <ul class="policy-links">
-                        <li><a href="#privacy"><i class="fas fa-lock"></i> Privacy Policy</a></li>
-                        <li><a href="#terms"><i class="fas fa-file-contract"></i> Terms of Use</a></li>
-                        <li><a href="#cookies"><i class="fas fa-cookie"></i> Cookie Policy</a></li>
+                        <li><a href="#policy"><i class="fas fa-gavel"></i> Lecturer Booking Policy</a></li>
+                        <li><a href="#contact"><i class="fas fa-envelope"></i> Contact Information</a></li>
                     </ul>
 
                     <h3><i class="fas fa-share-alt"></i> Follow Us</h3>
                     <div class="social-media">
-                        <a href="https://facebook.com/rupp.edu.kh" target="_blank" class="social-link facebook">
+                        <a href="https://facebook.com/rupp.edu.kh" target="_blank" rel="noopener noreferrer" class="social-link facebook">
                             <i class="fab fa-facebook"></i>
                             <span>Facebook</span>
                         </a>
-                        <a href="https://t.me/rupp_official" target="_blank" class="social-link telegram">
+                        <a href="https://t.me/rupp_official" target="_blank" rel="noopener noreferrer" class="social-link telegram">
                             <i class="fab fa-telegram"></i>
                             <span>Telegram</span>
                         </a>
-                        <a href="https://twitter.com/rupp_official" target="_blank" class="social-link twitter">
+                        <a href="https://twitter.com/rupp_official" target="_blank" rel="noopener noreferrer" class="social-link twitter">
                             <i class="fab fa-twitter"></i>
                             <span>Twitter</span>
                         </a>
-                        <a href="https://instagram.com/rupp_official" target="_blank" class="social-link instagram">
+                        <a href="https://instagram.com/rupp_official" target="_blank" rel="noopener noreferrer" class="social-link instagram">
                             <i class="fab fa-instagram"></i>
                             <span>Instagram</span>
                         </a>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- Booking Guide Section -->
-        <section class="booking-guide" id="booking-guide">
-            <h2><i class="fas fa-graduation-cap"></i> Room Booking Guide</h2>
-            <div class="guide-steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <div class="step-content">
-                        <h3>Choose Your Room</h3>
-                        <p>Browse available rooms by type, capacity, and features. Use filters to find the perfect match for your needs.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <div class="step-content">
-                        <h3>Select Date & Time</h3>
-                        <p>Pick your preferred date and time slot. Check availability in real-time and select duration.</p>
-                    </div>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <div class="step-content">
-                        <h3>Fill Booking Details</h3>
-                        <p>Complete the booking form with your information and purpose of use. Your booking will be confirmed immediately.</p>
-                    </div>
-                </div>
-
             </div>
         </section>
 
@@ -239,8 +277,8 @@
                 {% if messages %}
                     <div id="persistent-success-message">
                         {% for message in messages %}
-                            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}" style="margin-bottom: 1rem; color: #27ae60; font-weight: 500; font-size: 1.1rem;">
-                                <i class="fas fa-check-circle" style="margin-right:8px;"></i>{{ message }}
+                            <div class="alert alert-success-message {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                                <i class="fas fa-check-circle success-icon"></i>{{ message }}
                             </div>
                         {% endfor %}
                     </div>
@@ -311,22 +349,6 @@
 
    
     <script>
-        function toggleFAQ(element) {
-            const faqItem = element.parentElement;
-            const answer = faqItem.querySelector('.faq-answer');
-            const chevron = element.querySelector('.fas');
-            // Toggle active class
-            faqItem.classList.toggle('active');
-            // Toggle chevron direction
-            if (faqItem.classList.contains('active')) {
-                chevron.classList.remove('fa-chevron-down');
-                chevron.classList.add('fa-chevron-up');
-            } else {
-                chevron.classList.remove('fa-chevron-up');
-                chevron.classList.add('fa-chevron-down');
-            }
-        }
-
         // Smooth scrolling for anchor links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function (e) {
@@ -401,33 +423,10 @@
             }, { once: true });
         }
 
-        // Show Django messages as a toast if present and prevent form resubmission on reload
+        // Prevent resubmission on reload after a successful POST
         window.addEventListener('DOMContentLoaded', function() {
-            var msgDiv = document.getElementById('django-messages');
-            if (msgDiv) {
-                var toast = document.createElement('div');
-                toast.style.position = 'fixed';
-                toast.style.top = '20px';
-                toast.style.right = '20px';
-                toast.style.background = '#27ae60';
-                toast.style.color = 'white';
-                toast.style.padding = '1rem 1.5rem';
-                toast.style.borderRadius = '8px';
-                toast.style.boxShadow = '0 5px 15px rgba(0,0,0,0.3)';
-                toast.style.zIndex = '1000';
-                toast.style.fontSize = '1.1rem';
-                toast.style.display = 'flex';
-                toast.style.alignItems = 'center';
-                toast.innerHTML = '<i class="fas fa-check-circle" style="margin-right:8px;"></i>' + msgDiv.innerText;
-                document.body.appendChild(toast);
-                setTimeout(function() { toast.remove(); }, 5000);
-                // Reset form after successful submission
-                var form = document.getElementById('contactForm');
-                if (form) form.reset();
-                // Prevent resubmission on reload
-                if (window.history.replaceState) {
-                    window.history.replaceState(null, null, window.location.href);
-                }
+            if (window.history.replaceState) {
+                window.history.replaceState(null, null, window.location.href);
             }
         });
 

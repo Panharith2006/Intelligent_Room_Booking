@@ -155,21 +155,21 @@
                                     data-start-time="{{ booking.start_time|date:'c' }}">
                                 <i class="fas fa-times"></i> Cancel Booking
                             </button>
-                            <div class="cancel-notice">
-                                <i class="fas fa-info-circle"></i> 
-                                You can cancel up to 24 hours before the booking starts.
-                                <br>Time until booking: {{ hours_until_booking|floatformat:1 }} hours
-                            </div>
-                        {% else %}
-                            {% if hours_until_booking > 0 %}
-                                <button class="btn btn-secondary" disabled title="Must cancel 24 hours in advance">
-                                    <i class="fas fa-clock"></i> Too Late to Cancel ({{ hours_until_booking|floatformat:1 }}h left)
-                                </button>
+                            {% if late_cancellation %}
                                 <div class="cancel-notice warning">
-                                    <i class="fas fa-exclamation-triangle"></i> 
-                                    Cannot cancel - Must cancel at least 24 hours in advance.
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    Late cancellation: this booking starts in less than {{ cancellation_notice_hours }} hours, so a penalty record will be added.
+                                    <br>Time until booking: {{ hours_until_booking|floatformat:1 }} hours
                                 </div>
                             {% else %}
+                                <div class="cancel-notice">
+                                    <i class="fas fa-info-circle"></i>
+                                    Cancellation within {{ cancellation_notice_hours }} hours is allowed, but counted as late cancellation.
+                                    <br>Time until booking: {{ hours_until_booking|floatformat:1 }} hours
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            {% if hours_until_booking <= 0 %}
                                 <button class="btn btn-secondary" disabled title="Booking has started">
                                     <i class="fas fa-play"></i> Booking Started
                                 </button>
@@ -177,6 +177,10 @@
                                     <i class="fas fa-play"></i> 
                                     Cannot cancel - Booking has already started.
                                 </div>
+                            {% else %}
+                                <button class="btn btn-secondary" disabled title="Booking cannot be cancelled in current status">
+                                    <i class="fas fa-clock"></i> Cancellation Unavailable
+                                </button>
                             {% endif %}
                         {% endif %}
                     {% endif %}
@@ -258,7 +262,7 @@
         window.cancelBooking = function(bookingId) {
             console.log('Enhanced cancelBooking called for ID:', bookingId);
             
-            // Check 24-hour rule first
+            // Check cancellation timing policy first
             const cancelButton = document.querySelector(`button[data-booking-id="${bookingId}"]`);
             if (cancelButton) {
                 const startTimeStr = cancelButton.getAttribute('data-start-time');
@@ -269,13 +273,16 @@
                     
                     console.log('Hours until booking:', hoursUntilBooking);
                     
-                    if (hoursUntilBooking < 24) {
-                        if (hoursUntilBooking <= 0) {
-                            alert('Cannot cancel booking that has already started.');
-                        } else {
-                            alert(`Cannot cancel booking. Must cancel at least 24 hours in advance. Only ${hoursUntilBooking.toFixed(1)} hours remaining.`);
-                        }
+                    if (hoursUntilBooking <= 0) {
+                        alert('Cannot cancel booking that has already started.');
                         return;
+                    }
+
+                    if (hoursUntilBooking < 3) {
+                        const proceed = confirm('This is a late cancellation (less than 3 hours before start). A penalty record may be added. Continue?');
+                        if (!proceed) {
+                            return;
+                        }
                     }
                 }
             }

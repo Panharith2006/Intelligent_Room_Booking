@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, PasswordChangeForm
 from django.contrib.auth import get_user_model
+from PIL import Image, UnidentifiedImageError
 
 User = get_user_model()
 
@@ -41,11 +42,11 @@ class CustomUserCreationForm(UserCreationForm):
         required=False,  # Make optional for flexibility
         widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'placeholder': 'Student ID (optional)',
+            'placeholder': 'Lecturer ID (optional)',
             'id': 'studentId'
         })
     )
-    
+
     phone_number = forms.CharField(
         max_length=20,
         required=False,
@@ -105,7 +106,7 @@ class CustomUserCreationForm(UserCreationForm):
     def clean_student_id(self):
         student_id = self.cleaned_data.get('student_id')
         if student_id and User.objects.filter(student_id=student_id).exists():
-            raise forms.ValidationError("This student ID is already registered.")
+            raise forms.ValidationError("This lecturer ID is already registered.")
         return student_id
     
     def save(self, commit=True):
@@ -174,10 +175,10 @@ class UserUpdateForm(forms.ModelForm):
     
     profile_picture = forms.ImageField(
         required=False,
-        widget=forms.ClearableFileInput(attrs={
+        widget=forms.FileInput(attrs={
             'class': 'form-control-file',
             'id': 'profilePicture',
-            'accept': 'image/*',
+            'accept': 'image/jpeg,image/png,image/webp',
             'style': 'display:none;'
         })
     )
@@ -198,7 +199,7 @@ class UserUpdateForm(forms.ModelForm):
             }),
             'student_id': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'Student ID',
+                'placeholder': 'Lecturer ID',
                 'id': 'studentId'
             }),
             'email': forms.EmailInput(attrs={
@@ -232,7 +233,7 @@ class UserUpdateForm(forms.ModelForm):
         # Make fields more user-friendly for Google users
         if self.instance and hasattr(self.instance, 'socialaccount_set') and self.instance.socialaccount_set.exists():
             # This is a Google user - customize form
-            self.fields['student_id'].help_text = 'Optional - You can add your student ID or leave blank'
+            self.fields['student_id'].help_text = 'Optional - You can add your lecturer ID or leave blank'
             self.fields['phone_number'].help_text = 'Optional - Add your phone number for better communication'
             self.fields['faculty'].help_text = 'Optional - Select your faculty if applicable'
             self.fields['department'].help_text = 'Optional - Enter your department or program'
@@ -240,7 +241,7 @@ class UserUpdateForm(forms.ModelForm):
             # Make student_id not required for Google users if it's auto-generated
             if self.instance.student_id and self.instance.student_id.startswith('GOOGLE'):
                 self.fields['student_id'].required = False
-                self.fields['student_id'].widget.attrs['placeholder'] = 'Student ID (optional for Google users)'
+                self.fields['student_id'].widget.attrs['placeholder'] = 'Lecturer ID (optional for Google users)'
         
         
 
@@ -257,23 +258,23 @@ class UserUpdateForm(forms.ModelForm):
             if self.instance.student_id:
                 return self.instance.student_id
             else:
-                # Leave empty so user can add their real student ID later
+                # Leave empty so user can add their real lecturer ID later
                 return ""
 
-        # Normalize student ID - remove spaces and convert to uppercase
+            # Normalize lecturer ID - remove spaces and convert to uppercase
         student_id = student_id.replace(' ', '').upper()
         
         # Only check for duplicates if changed and not empty
         if student_id != self.instance.student_id:
             qs = User.objects.filter(student_id=student_id).exclude(pk=self.instance.pk)
             if qs.exists():
-                raise forms.ValidationError("This student ID is already registered.")
+                raise forms.ValidationError("This lecturer ID is already registered.")
                 
         # Validate format only if not auto-generated ID
         if not student_id.startswith(('GOOGLE', 'USR')):
             import re
             if not re.match(r'^[A-Z0-9]{6,20}$', student_id):
-                raise forms.ValidationError("Student ID must be 6-20 characters (letters and numbers only)")
+                raise forms.ValidationError("Lecturer ID must be 6-20 characters (letters and numbers only)")
         
         return student_id
 
@@ -313,8 +314,36 @@ class UserUpdateForm(forms.ModelForm):
             return department.strip()  # Preserve user input as-is
         return department or ''  # Return empty string instead of None
 
+    def clean_profile_picture(self):
+        picture = self.cleaned_data.get('profile_picture')
+        if not picture:
+            return picture
+
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+        content_type = getattr(picture, 'content_type', None)
+        if content_type and content_type not in allowed_types:
+            raise forms.ValidationError('Profile photo must be JPG, PNG, or WEBP format.')
+
+        max_size_bytes = 2 * 1024 * 1024  # 2MB
+        if picture.size > max_size_bytes:
+            raise forms.ValidationError('Profile photo must be 2MB or smaller.')
+
+        try:
+            image = Image.open(picture)
+            image.verify()
+        except (UnidentifiedImageError, OSError, ValueError):
+            raise forms.ValidationError('Uploaded file is not a valid image.')
+        finally:
+            try:
+                picture.seek(0)
+            except Exception:
+                pass
+
+        return picture
+
     def save(self, commit=True):
         user = super().save(commit=False)
+        clear_requested = str(self.data.get('clear_profile_picture', '0')).lower() in {'1', 'true', 'on', 'yes'}
         
         # Debug logging
         import logging
@@ -339,7 +368,9 @@ class UserUpdateForm(forms.ModelForm):
         # Email is read-only, do not update
         # Handle profile picture
         profile_picture = self.cleaned_data.get('profile_picture')
-        if profile_picture:
+        if clear_requested:
+            user.profile_picture = None
+        elif profile_picture:
             logger.info(f"Updating profile picture: {profile_picture}")
             user.profile_picture = profile_picture
         elif self.fields['profile_picture'].required is False and not profile_picture and self.instance.profile_picture:

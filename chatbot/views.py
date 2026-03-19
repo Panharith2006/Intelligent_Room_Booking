@@ -23,26 +23,58 @@ logger = logging.getLogger(__name__)
 booking_automation = BookingAutomation(Room, Booking, BookingRule)
 
 
+def _get_session_payload(session_id: str) -> dict:
+    """Return owner-bound session payload with backward compatibility."""
+    try:
+        payload = cache.get(f'chat_session:{session_id}', {})
+        if not isinstance(payload, dict):
+            return {'owner_user_id': None, 'context': {}}
+
+        # Backward compatibility for legacy payloads that stored context directly.
+        if 'context' not in payload:
+            return {'owner_user_id': None, 'context': payload}
+
+        context = payload.get('context')
+        if not isinstance(context, dict):
+            context = {}
+
+        return {
+            'owner_user_id': payload.get('owner_user_id'),
+            'context': context,
+        }
+    except Exception:
+        return {'owner_user_id': None, 'context': {}}
+
+
 def _get_session_context(session_id: str) -> dict:
-    try:
-        ctx = cache.get(f'chat_session:{session_id}', {})
-        return ctx if isinstance(ctx, dict) else {}
-    except Exception:
-        return {}
+    return _get_session_payload(session_id).get('context', {})
 
 
-def _save_session_context(session_id: str, ctx: dict):
+def _save_session_context(session_id: str, ctx: dict, owner_user_id: int = None):
     try:
-        cache.set(f'chat_session:{session_id}', ctx, timeout=60 * 60 * 24)
+        payload = _get_session_payload(session_id)
+        existing_owner = payload.get('owner_user_id')
+        resolved_owner = existing_owner if existing_owner is not None else owner_user_id
+        cache.set(
+            f'chat_session:{session_id}',
+            {'owner_user_id': resolved_owner, 'context': ctx},
+            timeout=60 * 60 * 24,
+        )
     except Exception:
         pass
 
 
-def _clear_session_context(session_id: str):
+def _clear_session_context(session_id: str, owner_user_id: int = None) -> bool:
     try:
+        if owner_user_id is not None:
+            payload = _get_session_payload(session_id)
+            existing_owner = payload.get('owner_user_id')
+            if existing_owner is not None and existing_owner != owner_user_id:
+                return False
         cache.delete(f'chat_session:{session_id}')
+        return True
     except Exception:
-        pass
+        return False
 
 
 async def _ai_parse_structured(ai_reply):
@@ -76,7 +108,6 @@ async def _chat_endpoint_async(request):
     try:
         body = json.loads(request.body.decode('utf-8'))
         user_message = body.get('message', '').strip()
-        user_email = body.get('email', '')
         session_id = body.get('session_id') or str(uuid.uuid4())
         
         # Get authenticated user info (async-safe)
@@ -92,6 +123,7 @@ async def _chat_endpoint_async(request):
                     return None
                 
                 return {
+                    'id': user.id,
                     'email': user.email,
                     'full_name': user.get_full_name() or f"{user.first_name} {user.last_name}".strip() or user.username,
                     'first_name': user.first_name,
@@ -104,18 +136,33 @@ async def _chat_endpoint_async(request):
                 }
             
             user_info = await sync_to_async(get_user_info_sync, thread_sensitive=True)()
-            if user_info:
-                user_email = user_info['email']  # Override with authenticated user's email
         except Exception as e:
             logger.warning(f"Failed to get user info: {e}")
             user_info = None
 
+        # Require authenticated user for chat operations.
+        if not user_info:
+            return JsonResponse({'error': 'Authentication required.'}, status=403)
+
+        user_id = user_info['id']
+        user_email = user_info['email']
+
+        # Verify chat session ownership before using cached context.
+        session_payload = _get_session_payload(session_id)
+        owner_user_id = session_payload.get('owner_user_id')
+        if owner_user_id is not None and owner_user_id != user_id:
+            return JsonResponse({'error': 'Forbidden: session ownership mismatch.'}, status=403)
+        if owner_user_id is None:
+            if session_payload.get('context'):
+                return JsonResponse({'error': 'Forbidden: unbound legacy session. Start a new session.'}, status=403)
+            _save_session_context(session_id, session_payload.get('context', {}), owner_user_id=user_id)
+
         # Handle inline slot updates
         update_slots = body.get('update_slots')
         if isinstance(update_slots, dict) and update_slots:
-            session_ctx = _get_session_context(session_id)
+            session_ctx = session_payload.get('context', {})
             session_ctx.update({k: v for k, v in update_slots.items() if v})
-            _save_session_context(session_id, session_ctx)
+            _save_session_context(session_id, session_ctx, owner_user_id=user_id)
             
             # Return confirmation message
             structured = {
@@ -156,7 +203,13 @@ async def _chat_endpoint_async(request):
                 return JsonResponse({'error': 'agent_not_initialized', 'reply': 'Chat agent is not initialized.'}, status=503)
             
             # Call agent's chat method with user info - now returns dict
-            ai_reply = await agent.chat_async(user_message, user_email=user_email, session_id=session_id, user_info=user_info)
+            ai_reply = await agent.chat_async(
+                user_message,
+                user_email=user_email,
+                user_id=user_id,
+                session_id=session_id,
+                user_info=user_info,
+            )
             
             # ai_reply is already a dict from the updated agent
             if isinstance(ai_reply, dict):
@@ -177,7 +230,7 @@ async def _chat_endpoint_async(request):
                     session_ctx = _get_session_context(session_id)
                     session_ctx.update({k: v for k, v in slots.items() if v})
                     session_ctx['last_intent'] = intent
-                    _save_session_context(session_id, session_ctx)
+                    _save_session_context(session_id, session_ctx, owner_user_id=user_id)
 
                 # If booking intent and full info, prepare preview
                 if intent and intent.lower() in ('book_room', 'booking', 'reserve'):
@@ -198,6 +251,7 @@ async def _chat_endpoint_async(request):
                             room = best['room']
                             try:
                                 cache.set(f'booking_preview:{session_id}', {
+                                    'owner_user_id': user_id,
                                     'criteria': criteria, 
                                     'best_room_id': getattr(room, 'id', None)
                                 }, timeout=15 * 60)
@@ -300,7 +354,6 @@ async def _confirm_booking_async(request):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     session_id = body.get('session_id') or ''
-    user_email = body.get('email', '')
 
     if not session_id:
         return JsonResponse({'error': 'session_id required'}, status=400)
@@ -309,13 +362,14 @@ async def _confirm_booking_async(request):
     if not preview:
         return JsonResponse({'reply': 'No pending booking found to confirm.'}, status=400)
 
+    if not isinstance(preview, dict):
+        return JsonResponse({'reply': 'Invalid booking preview.'}, status=400)
+
+    owner_user_id = preview.get('owner_user_id')
+
     criteria = preview.get('criteria', {})
 
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-    user = None
-    
-    # Get user from request or email (async-safe)
+    # Require authenticated request.user for booking confirmation.
     try:
         def get_request_user():
             if not hasattr(request, 'user'):
@@ -323,21 +377,20 @@ async def _confirm_booking_async(request):
             if not request.user.is_authenticated:
                 return None
             return request.user
-        
+
         user = await sync_to_async(get_request_user, thread_sensitive=True)()
     except Exception as e:
         logger.warning(f"Failed to get request user: {e}")
         user = None
-    
-    # If no authenticated user, try to get by email
-    if not user and user_email:
-        try:
-            user = await sync_to_async(User.objects.get, thread_sensitive=False)(email=user_email)
-        except User.DoesNotExist:
-            user = None
 
     if not user or not getattr(user, 'is_authenticated', False):
         return JsonResponse({'reply': 'Please sign in to confirm booking.'}, status=403)
+
+    if owner_user_id is None:
+        return JsonResponse({'error': 'Forbidden: unbound booking preview. Please regenerate preview.'}, status=403)
+
+    if owner_user_id != user.id:
+        return JsonResponse({'error': 'Forbidden: booking preview ownership mismatch.'}, status=403)
 
     result = await sync_to_async(booking_automation.auto_book, thread_sensitive=False)(user, criteria)
 
@@ -348,7 +401,6 @@ async def _confirm_booking_async(request):
 
     reply_text = result.get('user_message') if isinstance(result, dict) else str(result)
     return JsonResponse({'reply': reply_text, 'result': result, 'session_id': session_id})
-
 
 # Sync wrapper for compatibility
 @csrf_exempt
@@ -380,7 +432,13 @@ def clear_session(request):
         session_id = body.get('session_id', '')
         if not session_id:
             return JsonResponse({'success': False, 'message': 'session_id required'}, status=400)
-        _clear_session_context(session_id)
+
+        if not getattr(request, 'user', None) or not request.user.is_authenticated:
+            return JsonResponse({'success': False, 'message': 'Authentication required'}, status=403)
+
+        if not _clear_session_context(session_id, owner_user_id=request.user.id):
+            return JsonResponse({'success': False, 'message': 'Forbidden: session ownership mismatch'}, status=403)
+
         from .apps import get_chat_agent
         agent = get_chat_agent()
         if agent is not None and hasattr(agent, 'clear_chat_history'):
@@ -400,9 +458,6 @@ async def _handle_booking_intent(request, intent_data: dict, user_email: str, se
     """
     Handle booking intent with intelligent automation
     """
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-
     # Get user (use sync_to_async when accessing ORM or request.user in async context)
     user = None
     try:
@@ -410,14 +465,9 @@ async def _handle_booking_intent(request, intent_data: dict, user_email: str, se
     except Exception:
         is_auth = False
 
-    if user_email and is_auth:
+    if is_auth:
         # request.user is available and authenticated
         user = request.user
-    elif user_email:
-        try:
-            user = await sync_to_async(User.objects.get, thread_sensitive=False)(email=user_email)
-        except User.DoesNotExist:
-            user = None
     
     if not user or not user.is_authenticated:
         return ("I'd love to help you book a room!\n\n"
@@ -450,7 +500,9 @@ async def _handle_booking_intent(request, intent_data: dict, user_email: str, se
 
         # Save preview to cache so confirmation endpoint can complete the booking
         try:
+            owner_user_id = await sync_to_async(lambda: request.user.id if hasattr(request, 'user') and request.user.is_authenticated else None, thread_sensitive=True)()
             cache.set(f'booking_preview:{session_id}', {
+                'owner_user_id': owner_user_id,
                 'criteria': criteria,
                 'best_room_id': getattr(room, 'id', None)
             }, timeout=15 * 60)  # 15 minutes

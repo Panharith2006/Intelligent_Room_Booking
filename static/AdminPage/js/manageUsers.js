@@ -29,34 +29,40 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('userSearch');
         const roleFilter = document.getElementById('roleFilter');
         const statusFilter = document.getElementById('statusFilter');
+        const approvalFilter = document.getElementById('approvalFilter');
         const tableRows = document.querySelectorAll('#usersTable tbody tr');
 
         function filterUsers() {
             const searchTerm = searchInput.value.toLowerCase();
             const selectedRole = roleFilter.value;
             const selectedStatus = statusFilter.value;
+            const selectedApproval = approvalFilter ? approvalFilter.value : '';
 
             let visibleCount = 0;
 
             tableRows.forEach(row => {
                 // Skip empty rows
-                if (row.cells.length < 8) return;
+                if (row.cells.length < 11) return;
 
                 const userName = row.cells[0].textContent.toLowerCase();
                 const userEmail = row.cells[1].textContent.toLowerCase();
-                const userFaculty = row.cells[4].textContent.toLowerCase();
-                const userDepartment = row.cells[5].textContent.toLowerCase();
+                const userLecturerId = row.cells[3].textContent.toLowerCase();
+                const userFaculty = row.cells[7].textContent.toLowerCase();
+                const userDepartment = row.cells[8].textContent.toLowerCase();
                 const userRole = row.getAttribute('data-role');
                 const userStatus = row.getAttribute('data-status');
+                const userApproval = row.getAttribute('data-approval');
 
                 const matchesSearch = userName.includes(searchTerm) || 
                                     userEmail.includes(searchTerm) ||
+                                    userLecturerId.includes(searchTerm) ||
                                     userFaculty.includes(searchTerm) ||
                                     userDepartment.includes(searchTerm);
                 const matchesRole = !selectedRole || userRole === selectedRole;
                 const matchesStatus = !selectedStatus || userStatus === selectedStatus;
+                const matchesApproval = !selectedApproval || userApproval === selectedApproval;
 
-                if (matchesSearch && matchesRole && matchesStatus) {
+                if (matchesSearch && matchesRole && matchesStatus && matchesApproval) {
                     row.style.display = '';
                     visibleCount++;
                 } else {
@@ -95,6 +101,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         roleFilter.addEventListener('change', filterUsers);
         statusFilter.addEventListener('change', filterUsers);
+        if (approvalFilter) {
+            approvalFilter.addEventListener('change', filterUsers);
+        }
 
         // Initialize
         filterUsers();
@@ -175,7 +184,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Update UI immediately for better UX
             updateUserStatusUI(userId, !currentStatus, userName);
             
-            const statusText = currentStatus ? 'deactivated' : 'activated';
+            let statusText = 'updated';
+            if (action === 'toggle_active') {
+                statusText = currentStatus ? 'deactivated' : 'activated';
+            } else if (action === 'approve_booking_access') {
+                statusText = 'approved for booking';
+            } else if (action === 'reject_booking_access') {
+                statusText = 'rejected for booking';
+            } else if (action === 'set_booking_pending') {
+                statusText = 'set to pending review';
+            }
+
             showNotification(`${userName} has been ${statusText}`, 'success');
             
             // Reload page after a short delay to ensure data consistency
@@ -369,20 +388,22 @@ document.addEventListener('DOMContentLoaded', function() {
     window.exportUsersData = function() {
         // Get visible table rows (respecting current filters)
         const tableRows = document.querySelectorAll('#usersTable tbody tr');
-        let csvContent = "Name,Email,Role,Status,Faculty,Department,Date Joined\n";
+        let csvContent = "Name,Email,Lecturer ID,Role,Status,Booking Access,Faculty,Department,Date Joined\n";
         
         tableRows.forEach(row => {
-            if (row.style.display !== 'none' && row.cells.length > 1) {
+                if (row.style.display !== 'none' && row.cells.length > 1) {
                 // Extract data from each visible row (skip actions column)
                 const name = row.cells[0].textContent.trim();
                 const email = row.cells[1].textContent.trim();
-                const role = row.cells[2].textContent.trim();
-                const status = row.cells[3].textContent.trim();
-                const faculty = row.cells[4].textContent.trim();
-                const department = row.cells[5].textContent.trim();
-                const dateJoined = row.cells[6].textContent.trim();
+                const lecturerId = row.cells[3].textContent.trim();
+                const role = row.cells[4].textContent.trim();
+                const status = row.cells[5].textContent.trim();
+                const bookingAccess = row.cells[6].textContent.trim();
+                const faculty = row.cells[7].textContent.trim();
+                const department = row.cells[8].textContent.trim();
+                const dateJoined = row.cells[9].textContent.trim();
                 
-                const rowData = [name, email, role, status, faculty, department, dateJoined]
+                const rowData = [name, email, lecturerId, role, status, bookingAccess, faculty, department, dateJoined]
                     .map(cell => `"${cell.replace(/"/g, '""')}"`)
                     .join(',');
                 csvContent += rowData + "\n";

@@ -13,23 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 class VectorStore:
-    """
-    Manages vector embeddings using ChromaDB for semantic search.
-    
-    Features:
-    - Local persistent storage
-    - Automatic embedding generation using sentence-transformers
-    - Semantic similarity search
-    - Document metadata management
-    """
     
     def __init__(self, persist_directory: str = None):
-        """
-        Initialize ChromaDB vector store.
-        
-        Args:
-            persist_directory: Path to store ChromaDB data. Defaults to BASE_DIR/vector_db
-        """
+       
         if persist_directory is None:
             from django.conf import settings
             persist_directory = os.path.join(settings.BASE_DIR, 'vector_db')
@@ -205,7 +191,6 @@ class VectorStore:
 
 # Global vector store instance
 _vector_store = None
-
 
 def get_vector_store() -> VectorStore:
     """Get or create global vector store instance."""

@@ -1,0 +1,288 @@
+/* ===========================================
+   Reset & Base Styles
+=========================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ===========================================
+   Main Layout
+=========================================== */
+.container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 100vh;
+    background-color: #ffffff;
+    overflow: hidden; /* prevent unwanted scroll */
+}
+
+/* ===========================================
+   Branding Section
+=========================================== */
+.brand-section {
+    background: rgba(197, 172, 7, 0.21);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    position: sticky; /* keeps it fixed while scrolling */
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.brand-section::after {
+    content: '';
+    position: absolute;
+    bottom: -50px;
+    right: -50px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.05);
+    transform: rotate(45deg);
+}
+
+.university-logo {
+    width: 160px;
+    margin-bottom: 2rem;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.university-branding {
+    text-align: center;
+    color: #ffffff;
+    max-width: 400px;
+}
+
+.university-name {
+    font-family: 'Georgia', serif;
+    font-size: 2.2rem;
+    line-height: 1.2;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+}
+
+.university-motto {
+    font-size: 1.1rem;
+    opacity: 0.9;
+    font-weight: 300;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+/* ===========================================
+   Login Section
+=========================================== */
+.login-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 2rem;
+    height: 100vh;
+    overflow-y: auto; /* scrollable login area */
+}
+
+.login-card {
+    background-color: #ffffff;
+    padding: 3rem;
+    border-radius: 16px;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.05);
+    width: 100%;
+    max-width: 440px;
+    transform: translateY(0);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.login-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.08);
+}
+
+.login-header {
+    margin-bottom: 2.5rem;
+    text-align: center;
+}
+
+.login-title {
+    font-size: 1.8rem;
+    color: #002147;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.login-subtitle {
+    color: #6c757d;
+    font-size: 0.95rem;
+}
+
+/* ===========================================
+   Form Elements
+=========================================== */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #495057;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.875rem;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: #002147;
+    box-shadow: 0 0 0 3px rgba(0, 33, 71, 0.1);
+}
+
+/* ===========================================
+   Buttons
+=========================================== */
+.login-button {
+    width: 100%;
+    padding: 1rem;
+    background-color: #002147;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.login-button:hover {
+    background-color: #00152f;
+    transform: translateY(-1px);
+}
+
+.secondary-actions {
+    margin-top: 1.5rem;
+    text-align: center;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.secondary-actions a {
+    color: #002147;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.secondary-actions a:hover {
+    color: #00152f;
+}
+
+/* ===========================================
+   Google Sign-in Button
+=========================================== */
+.social-login {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 1.5rem 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: #dee2e6;
+}
+
+.divider span {
+    padding: 0 1rem;
+    background-color: #ffffff;
+}
+
+.google-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.875rem 1rem;
+    background-color: #ffffff;
+    color: #5f6368;
+    border: 2px solid #dadce0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    gap: 0.75rem;
+}
+
+.google-login-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #c5c7ca;
+    color: #3c4043;
+    text-decoration: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* ===========================================
+   Responsive Design
+=========================================== */
+@media (max-width: 992px) {
+    .container {
+        grid-template-columns: 1fr;
+    }
+
+    .brand-section {
+        position: relative;
+        height: auto;
+        padding: 4rem 2rem;
+    }
+
+    .login-section {
+        height: auto;
+        overflow-y: visible;
+    }
+
+    .university-name {
+        font-size: 1.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .login-card {
+        padding: 2rem;
+    }
+
+    .university-name {
+        font-size: 1.5rem;
+    }
+}

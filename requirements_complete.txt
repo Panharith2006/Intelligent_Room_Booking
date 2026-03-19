@@ -1,0 +1,80 @@
+# Complete Requirements for Advanced RAG System
+# Install with: pip install -r requirements_complete.txt
+
+# ===== Core Django =====
+Django>=4.2.0
+django-allauth>=0.54.0
+Pillow>=10.0.0
+python-dotenv>=1.0.0
+
+# ===== AI & LLM =====
+semantic-kernel>=0.9.0              # Semantic Kernel for agent logic
+groq>=0.4.0                         # Groq API (fallback/backup)
+
+# ===== Advanced RAG Components =====
+# Text Splitting & Document Processing
+langchain>=0.1.0                    # Professional text splitting
+langchain-community>=0.0.10         # Additional LangChain components
+
+# Embeddings & Vector Search
+sentence-transformers>=2.2.2        # Embeddings + Cross-encoder re-ranking
+chromadb>=0.4.0                     # Vector database
+faiss-cpu>=1.7.4                    # Alternative vector search (optional)
+
+# ML/NLP
+transformers>=4.30.0                # HuggingFace transformers
+torch>=2.0.0                        # PyTorch for models
+numpy>=1.24.0                       # Numerical operations
+scipy>=1.10.0                       # Scientific computing
+
+# ===== Document Loading =====
+PyPDF2>=3.0.0                       # PDF parsing
+beautifulsoup4>=4.12.0              # HTML parsing
+lxml>=4.9.0                         # XML/HTML processing
+markdown>=3.4.0                     # Markdown processing
+python-docx>=0.8.11                 # Word document support (optional)
+
+# ===== Web & APIs =====
+requests>=2.31.0                    # HTTP requests
+aiohttp>=3.9.0                      # Async HTTP
+
+# ===== Database & Caching =====
+psycopg2-binary>=2.9.0              # PostgreSQL (if using)
+redis>=4.5.0                        # Redis for caching (optional)
+django-redis>=5.2.0                 # Django Redis integration (optional)
+
+# ===== Utilities =====
+tqdm>=4.65.0                        # Progress bars
+python-dateutil>=2.8.0              # Date parsing
+pytz>=2023.3                        # Timezone support
+
+# ===== Email & Notifications =====
+google-api-python-client>=2.80.0   # Google Calendar integration
+google-auth>=2.16.0
+google-auth-httplib2>=0.1.0
+google-auth-oauthlib>=1.0.0
+
+# Telegram (if using)
+python-telegram-bot>=20.0           # Telegram bot (optional)
+
+# ===== Development & Testing =====
+pytest>=7.4.0                       # Testing framework
+pytest-django>=4.5.0                # Django testing
+pytest-asyncio>=0.21.0              # Async testing
+black>=23.0.0                       # Code formatting
+flake8>=6.0.0                       # Linting
+
+# ===== Production Server =====
+gunicorn>=21.0.0                    # WSGI server
+whitenoise>=6.4.0                   # Static files serving
+dj-database-url>=2.0.0              # Database URL parsing
+
+# ===== Monitoring & Logging =====
+sentry-sdk>=1.40.0                  # Error tracking (optional)
+
+# ===== Optional: Advanced Features =====
+# Uncomment if needed:
+# rank-bm25>=0.2.2                  # BM25 keyword search
+# whoosh>=2.7.4                     # Full-text search
+# spacy>=3.5.0                      # Advanced NLP
+# tiktoken>=0.5.0                   # Token counting for OpenAI models

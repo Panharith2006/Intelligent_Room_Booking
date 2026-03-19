@@ -63,7 +63,7 @@
                 </div>
                 <div class="profile-basic-info">
                     <h2 class="profile-title">{{ user.first_name }} {{ user.last_name }}</h2>
-                    <p class="profile-subtitle">Student</p>
+                    <p class="profile-subtitle">Lecturer</p>
                     <div class="profile-stats">
                         <div class="stat-item">
                             <i class="fas fa-calendar-check"></i>
@@ -90,7 +90,7 @@
                         <span class="value">{{ user.email }}</span>
                     </div>
                     <div class="info-row">
-                        <span class="label">Student ID:</span>
+                        <span class="label">Lecturer ID:</span>
                         <span class="value">{{ user.student_id|default:"Not provided" }}</span>
                     </div>
                     <div class="info-row">
@@ -110,6 +110,10 @@
                 <div class="info-section">
                     <h3><i class="fas fa-shield-alt"></i> Account Security</h3>
                     <div class="info-row">
+                        <span class="label">Booking Approval:</span>
+                        <span class="value approval-badge approval-{{ user.booking_approval_status }}">{{ user.get_booking_approval_status_display }}</span>
+                    </div>
+                    <div class="info-row">
                         <span class="label">Last Login:</span>
                         <span class="value">{{ user.last_login|date:"M d, Y H:i" }}</span>
                     </div>
@@ -125,17 +129,14 @@
 
         <!-- Quick Actions -->
         <div class="quick-actions">
-            <div class="edit-profile-action" style="margin: 2rem 0; text-align: center;">
-                <button onclick="window.location.href='{% url 'accounts:profile_setting' %}'" class="action-btn primary" style="font-size: 1.2em; padding: 0.75em 2em;">
+            <div class="edit-profile-action">
+                <button onclick="window.location.href='{% url 'accounts:profile_setting' %}'" class="action-btn primary action-btn-lg">
                     <i class="fas fa-edit"></i> Edit Profile
                 </button>
             </div>
+        </div>
+    </div>
 
-        
-
-    
-
-    <script src="{% static 'UserPage/js/setting.js' %}"></script>
     <script>
         function showPasswordModal() {
             document.getElementById('passwordModal').style.display = 'block';

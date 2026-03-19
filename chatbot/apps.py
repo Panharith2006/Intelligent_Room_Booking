@@ -378,7 +378,7 @@ Remember: You have TWO ways to provide room info:
 """
                     return system_prompt
 
-                async def chat_async(self, message: str, user_email: str = "", session_id: str = "default", user_info: dict = None) -> dict:
+                async def chat_async(self, message: str, user_email: str = "", user_id: int = None, session_id: str = "default", user_info: dict = None) -> dict:
                     """Process chat message asynchronously with RAG context."""
                     from semantic_kernel.contents.chat_history import ChatHistory
                     from semantic_kernel.connectors.ai.prompt_execution_settings import PromptExecutionSettings
@@ -488,7 +488,7 @@ Remember: You have TWO ways to provide room info:
                                 # Execute functions
                                 chat_history.add_assistant_message(first_response.content or '')
                                 
-                                function_results = await self._execute_functions(first_response, user_email)
+                                function_results = await self._execute_functions(first_response, user_email, user_id)
                                 
                                 # Add function results to history
                                 from semantic_kernel.contents.chat_message_content import ChatMessageContent
@@ -643,7 +643,7 @@ Remember: You have TWO ways to provide room info:
                     
                     return tools
 
-                async def _execute_functions(self, response, user_email: str) -> list:
+                async def _execute_functions(self, response, user_email: str, user_id: int = None) -> list:
                     """Execute function calls from AI response."""
                     function_results = []
                     
@@ -665,9 +665,11 @@ Remember: You have TWO ways to provide room info:
                         if not func_name:
                             continue
                         
-                        # Add user_email to args if needed
-                        if func_name in ['create_booking', 'list_user_bookings'] and 'user_email' not in func_args:
-                            func_args['user_email'] = user_email
+                        # Inject trusted identity for protected operations.
+                        if func_name in ['create_booking', 'list_user_bookings']:
+                            func_args.pop('user_email', None)
+                            if 'user_id' not in func_args and user_id is not None:
+                                func_args['user_id'] = str(user_id)
                         
                         try:
                             # Execute plugin method

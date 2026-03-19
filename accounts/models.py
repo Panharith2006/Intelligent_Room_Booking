@@ -22,6 +22,7 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_admin', True)
         extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('booking_approval_status', 'approved')
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
@@ -38,6 +39,15 @@ class UserManager(BaseUserManager):
 class User(AbstractUser):
     username = None
 
+    APPROVAL_PENDING = 'pending'
+    APPROVAL_APPROVED = 'approved'
+    APPROVAL_REJECTED = 'rejected'
+    APPROVAL_STATUS_CHOICES = [
+        (APPROVAL_PENDING, 'Pending Review'),
+        (APPROVAL_APPROVED, 'Approved'),
+        (APPROVAL_REJECTED, 'Rejected'),
+    ]
+
     email = models.EmailField(
         'Email Address',
         unique=True,
@@ -45,12 +55,19 @@ class User(AbstractUser):
     )
 
     student_id = models.CharField(
-        'Student ID',
+        'Lecturer ID',
         max_length=20,
         unique=True,
         blank=True,   # Allow blank for admin accounts and Google users
         null=True,    # Allow null temporarily for migration
-        help_text='6-20 character student identification.'
+        help_text='6-20 character lecturer identification.'
+    )
+
+    position = models.CharField(
+        'Position',
+        max_length=100,
+        blank=True,
+        help_text='Academic position (e.g., Lecturer, Assistant Professor).'
     )
 
     phone_number = models.CharField(
@@ -94,8 +111,26 @@ class User(AbstractUser):
         help_text='Designates whether the user can log into this admin site.'
     )
 
+    booking_approval_status = models.CharField(
+        'Booking Approval Status',
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        default=APPROVAL_PENDING,
+        help_text='Controls whether lecturer can make room bookings.'
+    )
+
     created_at = models.DateTimeField('Created At', auto_now_add=True)
     updated_at = models.DateTimeField('Updated At', auto_now=True)
+
+    late_cancellation_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Number of late cancellations (less than policy notice period).'
+    )
+
+    cancellation_warning_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Total warning notices issued for late cancellations.'
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']
@@ -118,10 +153,14 @@ class User(AbstractUser):
         return self.first_name
 
     def get_student_display_id(self):
-        """Return student ID"""
+        """Return lecturer ID"""
         if self.student_id:
             return f"{self.student_id}"
         return ""
+
+    def get_lecturer_display_id(self):
+        """Return lecturer ID for templates that use the newer terminology."""
+        return self.get_student_display_id()
     
     def get_phone_display(self):
         """Return phone number or default"""
@@ -132,9 +171,15 @@ class User(AbstractUser):
         return hasattr(self, 'socialaccount_set') and self.socialaccount_set.filter(provider='google').exists()
 
     def is_profile_complete(self):
-        """Check if user profile is reasonably complete"""
+        """Check if lecturer profile is complete for booking approval."""
         required_fields = [self.first_name, self.last_name, self.email]
-        optional_fields = [self.phone_number, self.faculty, self.department]
+        profile_fields = [
+            self.phone_number,
+            self.faculty,
+            self.department,
+            self.position,
+            self.profile_picture,
+        ]
 
         # All required fields must be filled
         if not all(required_fields):
@@ -142,16 +187,16 @@ class User(AbstractUser):
 
         # For Google users, student_id starting with GOOGLE is acceptable
         if self.is_google_user() and self.student_id and self.student_id.startswith('GOOGLE'):
-            return sum(1 for field in optional_fields if field) >= 1
+            return all(profile_fields)
         else:
-            # For regular users, student_id should not be auto-generated
+            # For regular users, lecturer ID should not be auto-generated
             if not self.student_id or self.student_id.startswith(('USR', 'GOOGLE')):
                 return False
-            return sum(1 for field in optional_fields if field) >= 1
+            return all(profile_fields)
 
     def get_profile_completion_percentage(self):
         """Get profile completion percentage"""
-        total_fields = 7  # first_name, last_name, email, student_id, phone, faculty, department
+        total_fields = 9  # first_name, last_name, email, lecturer_id, phone, faculty, department, position, photo
         filled_fields = 0
 
         # Required fields
@@ -175,6 +220,12 @@ class User(AbstractUser):
         if self.department:
             filled_fields += 1
 
+        if self.position:
+            filled_fields += 1
+
+        if self.profile_picture:
+            filled_fields += 1
+
         return int((filled_fields / total_fields) * 100)
 
     def is_regular_user(self):
@@ -184,3 +235,7 @@ class User(AbstractUser):
     def is_admin_user(self):
         """Check if user is admin"""
         return self.is_admin or self.is_superuser
+
+    def can_book_rooms(self):
+        """Return True if lecturer account is approved for booking."""
+        return self.booking_approval_status == self.APPROVAL_APPROVED

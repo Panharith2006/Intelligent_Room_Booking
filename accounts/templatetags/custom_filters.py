@@ -17,12 +17,11 @@ def hours_until(datetime_obj):
 
 @register.filter
 def can_cancel_booking(booking):
-    """Check if booking can be cancelled (24-hour rule)"""
+    """Check if booking can still be cancelled before it starts."""
     if booking.status not in ['pending', 'confirmed']:
         return False
-    
-    hours_until_booking = hours_until(booking.start_time)
-    return hours_until_booking >= 24
+
+    return hours_until(booking.start_time) > 0
 
 @register.filter
 def time_until_readable(datetime_obj):
