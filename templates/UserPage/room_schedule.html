@@ -41,6 +41,35 @@
             </div>
             <div class="flex-1 relative">
                 <div class="flex flex-col">
+                    <div class="bg-white border rounded-lg p-4 mb-4 shadow-sm">
+                        <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div>
+                                <h3 class="text-lg font-semibold text-indigo-700">Room Daily Timeline</h3>
+                                <p class="text-sm text-gray-600">Select a room and date to see exact occupied and available intervals from 07:00 to 22:00.</p>
+                            </div>
+                            <a href="{% url 'accounts:user_dashboard' %}" class="google-btn">Back to Rooms</a>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                            <div>
+                                <label for="timelineRoomSelect" class="text-sm font-medium text-gray-700">Room</label>
+                                <select id="timelineRoomSelect" class="google-btn w-full mt-1">
+                                    {% for room in rooms_data %}
+                                        <option value="{{ room.id }}" {% if selected_room_id == room.id|stringformat:"s" %}selected{% endif %}>{{ room.name }} ({{ room.room_number }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label for="timelineDateInput" class="text-sm font-medium text-gray-700">Date</label>
+                                <input type="date" id="timelineDateInput" class="google-btn w-full mt-1" value="{{ selected_date }}">
+                            </div>
+                            <div class="flex items-end">
+                                <button id="timelineLoadBtn" class="google-btn w-full">Load Timeline</button>
+                            </div>
+                        </div>
+                        <div id="roomTimelinePanel" class="border rounded p-3 bg-gray-50 mt-3 text-sm text-gray-700">
+                            Select room and date to load timeline.
+                        </div>
+                    </div>
                     <div class="flex gap-2 mb-4">
                         <button id="calendarTabBtn" class="google-btn">Calendar View</button>
                         <button id="tableTabBtn" class="google-btn">Table View</button>
@@ -127,8 +156,10 @@
         // Only set global variables here, all logic is in room_schedule.js
         window.currentUserId = {{ user.id }};
         window.apiRoomBookingsUrl = '{% url "accounts:api_room_bookings" %}';
+        window.roomTimelineApiUrl = '{% url "accounts:room_status_timeline_ajax" %}';
     </script>
     <script src="{% static 'UserPage/js/room_schedule.js' %}"></script>
+    <script src="{% static 'UserPage/js/room_schedule_timeline.js' %}"></script>
     {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

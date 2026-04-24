@@ -33,9 +33,6 @@ TELEGRAM_BOT_TOKEN = getattr(settings, 'TELEGRAM_BOT_TOKEN', None)
 ADMIN_CHAT_IDS = getattr(settings, 'TELEGRAM_ADMIN_CHAT_IDS', [])  # List of admin chat IDs
 
 def send_telegram_message(chat_id, message, parse_mode='Markdown'):
-    """
-    Send a message to a Telegram chat
-    """
     if not TELEGRAM_BOT_TOKEN:
         logger.warning("Telegram bot token not configured")
         return False
@@ -62,9 +59,6 @@ def send_telegram_message(chat_id, message, parse_mode='Markdown'):
         return False
 
 def format_booking_notification(booking, action="created"):
-    """
-    Format booking information for Telegram notification - Bright & Clear
-    """
     user = booking.user
     room = booking.room
     
@@ -99,12 +93,14 @@ def format_booking_notification(booking, action="created"):
 
 🏢 *Room*: {room.name} ({room.room_number})
 👥 *Capacity*: {room.capacity} people
+🙋 *Participants*: {booking.attendees} people
 🏷️ *Type*: {room.room_type.title()}
 
 📅 *Date*: {booking.start_time.strftime('%A, %B %d, %Y')}
 ⏰ *Time*: {booking.start_time.strftime('%H:%M')} - {booking.end_time.strftime('%H:%M')}
 ⏱️ *Duration*: {duration_text}
 🎯 *Purpose*: _{booking.purpose or 'Not specified'}_
+📝 *Additional Notes*: _{booking.additional_notes or 'None'}_
 
 🆔 *Booking ID*: #{booking.id}
 ━━━━━━━━━━━━━━
@@ -114,9 +110,6 @@ def format_booking_notification(booking, action="created"):
 
 @receiver(post_save, sender=Booking)
 def booking_created_notification(sender, instance, created, **kwargs):
-    """
-    Send Telegram notification when a new booking is created, confirmed, or cancelled
-    """
     if not ADMIN_CHAT_IDS:
         return
     
@@ -146,9 +139,6 @@ def booking_created_notification(sender, instance, created, **kwargs):
 
 @receiver(pre_save, sender=Booking)
 def track_booking_status(sender, instance, **kwargs):
-    """
-    Track previous booking status before save
-    """
     if instance.pk:
         try:
             old_instance = Booking.objects.get(pk=instance.pk)
@@ -159,9 +149,6 @@ def track_booking_status(sender, instance, **kwargs):
         instance._previous_status = None
 
 def alert_to_admins(message):
-    """
-    Send an alert message to all admin Telegram chats
-    """
     if not ADMIN_CHAT_IDS:
         return
 

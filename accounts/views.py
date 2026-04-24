@@ -1,9 +1,6 @@
 
 from django.db import models
 from django.conf import settings
-# ============================================================================
-# IMPORTS - Consolidated and deduplicated
-# ============================================================================
 # Django core imports
 from django.shortcuts import render, redirect
 from django.http import JsonResponse, HttpResponse
@@ -19,6 +16,7 @@ from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_GET
 from django.views.decorators.csrf import csrf_exempt
 from django.urls import reverse
+from datetime import datetime, time
 
 # Python standard library
 from functools import wraps
@@ -33,7 +31,7 @@ except ImportError:
     openpyxl = None
 
 # Local imports
-from booking.models import Room, Booking, Announcement
+from booking.models import Room, Booking, Announcement, RoomOccupiedTimeRule
 from accounts.forms import UserUpdateForm
 
 # Get the custom User model
@@ -69,10 +67,6 @@ def get_missing_profile_fields(user):
 
 
 def check_consecutive_booking_limit(user, room, start_datetime, end_datetime):
-    """
-    Enforce that consecutive bookings by the same user in the same room
-    do not exceed BOOKING_MAX_DURATION_HOURS total.
-    """
     from booking.models import Booking
 
     buffer_delta = timezone.timedelta(minutes=BOOKING_BUFFER_MINUTES)
@@ -148,8 +142,13 @@ def ajax_room_list(request):
             'name': room.name,
             'room_number': room.room_number,
             'capacity': room.capacity,
+            'min_booking_capacity': getattr(room, 'min_booking_capacity', 1),
+            'max_booking_capacity': getattr(room, 'max_booking_capacity', room.capacity),
             'room_type': room.room_type,
             'is_available': room.is_available,
+            'availability_status': getattr(room, 'availability_status', 'available'),
+            'current_status': room.get_current_status().replace('unavailable', 'maintenance') if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'maintenance'),
+            'auto_status_updates': getattr(room, 'auto_status_updates', True),
             'description': room.description,
             'equipment': room.equipment,
             'image_url': room.image.url if hasattr(room, 'image') and room.image else '',
@@ -192,8 +191,34 @@ def booked_view(request):
 
 @login_required
 def room_schedule_view(request):
-    """Stub view for room schedule page. Replace with real logic as needed."""
-    return render(request, 'UserPage/room_schedule.html')
+    """Room schedule page with per-room daily timeline support."""
+    rooms = Room.objects.all().order_by('room_number', 'name')
+
+    selected_room_id = request.GET.get('room_id', '')
+    selected_date = request.GET.get('date', timezone.now().date().isoformat())
+
+    rooms_data = []
+    for room in rooms:
+        rooms_data.append({
+            'id': room.id,
+            'name': room.name,
+            'room_number': room.room_number,
+            'capacity': room.capacity,
+            'current_status': room.get_current_status() if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'unavailable'),
+        })
+
+    if not selected_room_id and rooms_data:
+        selected_room_id = str(rooms_data[0]['id'])
+
+    context = {
+        'user': request.user,
+        'user_role': get_user_role(request.user),
+        'rooms_data': rooms_data,
+        'selected_room_id': str(selected_room_id) if selected_room_id else '',
+        'selected_date': selected_date,
+    }
+
+    return render(request, 'UserPage/room_schedule.html', context)
 
 @csrf_exempt
 @require_GET
@@ -424,13 +449,15 @@ def user_dashboard_view(request):
     # Convert rooms to format expected by frontend
     rooms_data = []
     for room in rooms:
+        effective_status = room.get_current_status() if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'unavailable')
         rooms_data.append({
             'id': room.id,
             'name': room.name,
             'room_number': room.room_number,
             'capacity': room.capacity,
             'room_type': room.room_type,
-            'available': room.is_available and getattr(room, 'availability_status', 'available') == 'available',
+            'available': effective_status == 'available',
+            'current_status': effective_status,
             'is_available': room.is_available,
             'availability_status': getattr(room, 'availability_status', 'available'),
             'description': room.description or f"Modern {room.get_room_type_display().lower()} with capacity for {room.capacity} people.",
@@ -469,8 +496,8 @@ def booking_view(request):
     # Import booking models
     from booking.models import Room, Booking
     
-    # Get available rooms for the form (for booking selection)
-    rooms = Room.objects.filter(is_available=True).order_by('room_number')
+    # Show all rooms so users can see status, including unavailable rooms.
+    rooms = Room.objects.all().order_by('room_number')
 
     # Build room_building_map: {room_id: building_code}
     room_building_map = {str(room.id): room.room_number for room in rooms}
@@ -479,7 +506,7 @@ def booking_view(request):
     selected_room = None
     if room_id:
         try:
-            selected_room = Room.objects.get(id=room_id, is_available=True)
+            selected_room = Room.objects.get(id=room_id)
         except Room.DoesNotExist:
             selected_room = None
 
@@ -553,6 +580,7 @@ def booking_view(request):
             'max_active_per_user': BOOKING_MAX_ACTIVE_PER_USER,
             'buffer_minutes': BOOKING_BUFFER_MINUTES,
         },
+        'default_timeline_hours': list(range(7, 22)),
     }
 
     return render(request, 'UserPage/booking.html', context)
@@ -608,7 +636,10 @@ def admin_view_rooms_view(request):
     # Filter by availability
     availability = request.GET.get('availability', '')
     if availability:
-        rooms = rooms.filter(is_available=(availability == 'true'))
+        if availability == 'available':
+            rooms = rooms.filter(is_available=True).exclude(availability_status='unavailable')
+        elif availability == 'unavailable':
+            rooms = rooms.filter(Q(is_available=False) | Q(availability_status='unavailable'))
 
     # Get room types for filter dropdown
     room_types = Room.ROOM_TYPES
@@ -733,12 +764,10 @@ def create_booking(request):
                 messages.error(request, 'Selected room does not exist.')
                 return redirect('accounts:booking')
             
-            if not room.is_available:
-                messages.error(request, 'This room is not available for booking.')
-                return redirect('accounts:booking')
-
-            if getattr(room, 'availability_status', 'available') != 'available':
-                messages.error(request, 'This room is currently unavailable for booking.')
+            effective_status = room.get_current_status(start_datetime) if hasattr(room, 'get_current_status') else getattr(room, 'availability_status', 'available')
+            if effective_status != 'available':
+                display_status = 'maintenance' if effective_status == 'unavailable' else effective_status
+                messages.error(request, f'This room is currently {display_status} for the selected time.')
                 return redirect('accounts:booking')
             
             # Validate attendees count
@@ -747,8 +776,13 @@ def create_booking(request):
                 if attendees_count <= 0:
                     messages.error(request, 'Number of attendees must be at least 1.')
                     return redirect('accounts:booking')
-                if attendees_count > room.capacity:
-                    messages.error(request, f'Number of attendees ({attendees_count}) exceeds room capacity ({room.capacity}).')
+                min_allowed = getattr(room, 'min_booking_capacity', 1)
+                max_allowed = getattr(room, 'max_booking_capacity', room.capacity)
+                if attendees_count < min_allowed or attendees_count > max_allowed:
+                    messages.error(
+                        request,
+                        f'Number of attendees must be between {min_allowed} and {max_allowed} for this room.'
+                    )
                     return redirect('accounts:booking')
             except (ValueError, TypeError):
                 messages.error(request, 'Invalid number of attendees.')
@@ -774,6 +808,13 @@ def create_booking(request):
                 start_time__lt=end_datetime + buffer_delta,
                 end_time__gt=start_datetime - buffer_delta,
             )
+
+            if room.is_occupied_by_admin_rule(start_datetime, end_datetime):
+                messages.error(
+                    request,
+                    'This time is marked as occupied by admin schedule rules for this room.'
+                )
+                return redirect('accounts:booking')
             
             if conflicts.exists():
                 conflict_booking = conflicts.first()
@@ -816,6 +857,7 @@ def create_booking(request):
                 purpose=purpose,
                 attendees=attendees_count,
                 additional_notes=notes,
+                agreed_to_room_policy=True,
                 status='confirmed'
             )
             
@@ -1097,7 +1139,7 @@ def manage_rooms_view(request):
     # Handle room management
     if request.method == 'POST':
         try:
-            from booking.models import Room
+            from booking.models import Room, RoomOccupiedTimeRule
             
             action = request.POST.get('action')
             
@@ -1107,9 +1149,14 @@ def manage_rooms_view(request):
                 room_number = request.POST.get('room_number')
                 room_type = request.POST.get('room_type')
                 capacity = request.POST.get('capacity')
+                min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+                max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
                 room_image = request.FILES.get('room_image')
+                availability_status = request.POST.get('availability_status', 'available')
+                is_available = request.POST.get('is_available', 'on') == 'on'
+                auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
                 
                 if room_name and room_number and room_type and capacity:
                     # Room number duplicates are now allowed
@@ -1118,9 +1165,13 @@ def manage_rooms_view(request):
                         'room_number': room_number,
                         'room_type': room_type,
                         'capacity': int(capacity),
+                        'min_booking_capacity': int(min_booking_capacity),
+                        'max_booking_capacity': int(max_booking_capacity),
                         'description': description,
                         'equipment': equipment,
-                        'is_available': True
+                        'is_available': is_available,
+                        'availability_status': availability_status,
+                        'auto_status_updates': auto_status_updates,
                     }
                     
                     if room_image:
@@ -1138,31 +1189,37 @@ def manage_rooms_view(request):
                 room_number = request.POST.get('room_number')
                 room_type = request.POST.get('room_type')
                 capacity = request.POST.get('capacity')
+                min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+                max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
                 room_image = request.FILES.get('room_image')
+                availability_status = request.POST.get('availability_status', 'available')
+                is_available = request.POST.get('is_available', 'on') == 'on'
+                auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
                 
                 if room_id and room_name and room_number and room_type and capacity:
                     try:
                         room = Room.objects.get(id=room_id)
                         
-                        # Check if room number already exists (excluding current room)
-                        if Room.objects.filter(room_number=room_number).exclude(id=room_id).exists():
-                            messages.error(request, f'Room number "{room_number}" already exists.')
-                        else:
-                            room.name = room_name
-                            room.room_number = room_number
-                            room.room_type = room_type
-                            room.capacity = int(capacity)
-                            room.description = description
-                            room.equipment = equipment
+                        room.name = room_name
+                        room.room_number = room_number
+                        room.room_type = room_type
+                        room.capacity = int(capacity)
+                        room.min_booking_capacity = int(min_booking_capacity)
+                        room.max_booking_capacity = int(max_booking_capacity)
+                        room.description = description
+                        room.equipment = equipment
+                        room.is_available = is_available
+                        room.availability_status = availability_status
+                        room.auto_status_updates = auto_status_updates
+                        
+                        # Update image if provided
+                        if room_image:
+                            room.image = room_image
                             
-                            # Update image if provided
-                            if room_image:
-                                room.image = room_image
-                                
-                            room.save()
-                            messages.success(request, f'Room "{room_name}" updated successfully!')
+                        room.save()
+                        messages.success(request, f'Room "{room_name}" updated successfully!')
                     except Room.DoesNotExist:
                         messages.error(request, 'Room not found.')
                     except ValueError:
@@ -1239,7 +1296,10 @@ def manage_rooms_view(request):
     # Filter by availability
     availability_filter = request.GET.get('availability', '')
     if availability_filter:
-        rooms = rooms.filter(is_available=(availability_filter == 'true'))
+        if availability_filter == 'available':
+            rooms = rooms.filter(is_available=True).exclude(availability_status='unavailable')
+        elif availability_filter == 'unavailable':
+            rooms = rooms.filter(Q(is_available=False) | Q(availability_status='unavailable'))
     
     context = {
         'user': request.user,
@@ -1278,30 +1338,35 @@ def admin_room_management_view(request):
                 room_number = request.POST.get('room_number')
                 room_type = request.POST.get('room_type')
                 capacity = request.POST.get('capacity')
+                min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+                max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
                 room_image = request.FILES.get('room_image')
+                availability_status = request.POST.get('availability_status', 'available')
+                is_available = request.POST.get('is_available', 'on') == 'on'
+                auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
                 
                 if room_name and room_number and room_type and capacity:
-                    # Check if room name or room number already exists
-                    if Room.objects.filter(name=room_name).exists():
-                        messages.error(request, f'Room name "{room_name}" already exists.')
-                    else:
-                        room_data = {
-                            'name': room_name,
-                            'room_number': room_number,
-                            'room_type': room_type,
-                            'capacity': int(capacity),
-                            'description': description,
-                            'equipment': equipment,
-                            'is_available': True
-                        }
+                    room_data = {
+                        'name': room_name,
+                        'room_number': room_number,
+                        'room_type': room_type,
+                        'capacity': int(capacity),
+                        'min_booking_capacity': int(min_booking_capacity),
+                        'max_booking_capacity': int(max_booking_capacity),
+                        'description': description,
+                        'equipment': equipment,
+                        'is_available': is_available,
+                        'availability_status': availability_status,
+                        'auto_status_updates': auto_status_updates,
+                    }
+                    
+                    if room_image:
+                        room_data['image'] = room_image
                         
-                        if room_image:
-                            room_data['image'] = room_image
-                            
-                        Room.objects.create(**room_data)
-                        messages.success(request, f'Room "{room_name}" added successfully!')
+                    Room.objects.create(**room_data)
+                    messages.success(request, f'Room "{room_name}" added successfully!')
                 else:
                     messages.error(request, 'Please fill in all required fields.')
                 
@@ -1312,37 +1377,97 @@ def admin_room_management_view(request):
                 room_number = request.POST.get('room_number')
                 room_type = request.POST.get('room_type')
                 capacity = request.POST.get('capacity')
+                min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+                max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
                 room_image = request.FILES.get('room_image')
+                availability_status = request.POST.get('availability_status', 'available')
+                is_available = request.POST.get('is_available', 'on') == 'on'
+                auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
                 
                 if room_id and room_name and room_number and room_type and capacity:
                     try:
                         room = Room.objects.get(id=room_id)
                         
-                        # Check if room number already exists (excluding current room)
-                        if Room.objects.filter(room_number=room_number).exclude(id=room_id).exists():
-                            messages.error(request, f'Room number "{room_number}" already exists.')
-                        else:
-                            room.name = room_name
-                            room.room_number = room_number
-                            room.room_type = room_type
-                            room.capacity = int(capacity)
-                            room.description = description
-                            room.equipment = equipment
+                        room.name = room_name
+                        room.room_number = room_number
+                        room.room_type = room_type
+                        room.capacity = int(capacity)
+                        room.min_booking_capacity = int(min_booking_capacity)
+                        room.max_booking_capacity = int(max_booking_capacity)
+                        room.description = description
+                        room.equipment = equipment
+                        room.is_available = is_available
+                        room.availability_status = availability_status
+                        room.auto_status_updates = auto_status_updates
+                        
+                        # Update image if provided
+                        if room_image:
+                            room.image = room_image
                             
-                            # Update image if provided
-                            if room_image:
-                                room.image = room_image
-                                
-                            room.save()
-                            messages.success(request, f'Room "{room_name}" updated successfully!')
+                        room.save()
+                        messages.success(request, f'Room "{room_name}" updated successfully!')
                     except Room.DoesNotExist:
                         messages.error(request, 'Room not found.')
                     except ValueError:
                         messages.error(request, 'Invalid capacity value. Please enter a number.')
                 else:
                     messages.error(request, 'Please fill in all required fields.')
+
+            elif action == 'add_occupied_rule':
+                room_id = request.POST.get('room_id')
+                try:
+                    room = Room.objects.get(id=room_id)
+                    rule_name = request.POST.get('rule_name', '').strip() or 'Occupied Rule'
+                    rule_type = request.POST.get('rule_type', 'fixed')
+                    fixed_date_str = request.POST.get('fixed_date', '').strip()
+                    start_date_str = request.POST.get('start_date', '').strip()
+                    end_date_str = request.POST.get('end_date', '').strip()
+                    weekdays = request.POST.getlist('weekdays')
+                    start_time_str = request.POST.get('start_time', '').strip()
+                    end_time_str = request.POST.get('end_time', '').strip()
+                    is_active = request.POST.get('is_active') == 'on'
+
+                    if not start_time_str or not end_time_str:
+                        messages.error(request, 'Start and end time are required for occupied rule.')
+                    else:
+                        start_time_value = datetime.strptime(start_time_str, '%H:%M').time()
+                        end_time_value = datetime.strptime(end_time_str, '%H:%M').time()
+
+                        fixed_date = datetime.strptime(fixed_date_str, '%Y-%m-%d').date() if fixed_date_str else None
+                        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+                        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+                        weekdays_value = ','.join(sorted(weekdays)) if weekdays else ''
+
+                        RoomOccupiedTimeRule.objects.create(
+                            room=room,
+                            name=rule_name,
+                            rule_type=rule_type,
+                            fixed_date=fixed_date,
+                            start_date=start_date,
+                            end_date=end_date,
+                            weekdays=weekdays_value,
+                            start_time=start_time_value,
+                            end_time=end_time_value,
+                            is_active=is_active,
+                        )
+                        messages.success(request, f'Occupied rule added for room "{room.name}".')
+                except Room.DoesNotExist:
+                    messages.error(request, 'Room not found for occupied rule.')
+                except ValueError:
+                    messages.error(request, 'Invalid date/time format for occupied rule.')
+
+            elif action == 'delete_occupied_rule':
+                room_id = request.POST.get('room_id')
+                rule_id = request.POST.get('rule_id')
+                try:
+                    rule = RoomOccupiedTimeRule.objects.get(id=rule_id, room_id=room_id)
+                    room_name = rule.room.name
+                    rule.delete()
+                    messages.success(request, f'Occupied rule removed from room "{room_name}".')
+                except RoomOccupiedTimeRule.DoesNotExist:
+                    messages.error(request, 'Occupied rule not found.')
                     
         except ValueError as e:
             messages.error(request, f'Invalid input: {str(e)}')
@@ -1351,7 +1476,7 @@ def admin_room_management_view(request):
     
     # Get rooms data
     from booking.models import Room
-    rooms = Room.objects.all().order_by('room_number')
+    rooms = Room.objects.all().prefetch_related('occupied_rules').order_by('room_number')
     
     # Get room types for the form
     room_types = Room.ROOM_TYPES
@@ -1378,7 +1503,10 @@ def admin_room_management_view(request):
     # Filter by availability
     availability_filter = request.GET.get('availability', '')
     if availability_filter:
-        rooms = rooms.filter(is_available=(availability_filter == 'true'))
+        if availability_filter == 'available':
+            rooms = rooms.filter(is_available=True).exclude(availability_status='unavailable')
+        elif availability_filter == 'unavailable':
+            rooms = rooms.filter(Q(is_available=False) | Q(availability_status='unavailable'))
     
     context = {
         'user': request.user,
@@ -1417,9 +1545,14 @@ def add_room_view(request):
         room_number = request.POST.get('room_number')
         room_type = request.POST.get('room_type')
         capacity = request.POST.get('capacity')
+        min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+        max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
         description = request.POST.get('description', '')
         equipment = request.POST.get('equipment', '')
         image = request.FILES.get('image')
+        is_available = request.POST.get('is_available', 'on') == 'on'
+        availability_status = request.POST.get('availability_status', 'available')
+        auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
 
         if not (name and room_number and room_type and capacity):
             messages.error(request, 'Please fill in all required fields.')
@@ -1431,8 +1564,13 @@ def add_room_view(request):
                     room_number=room_number,
                     room_type=room_type,
                     capacity=capacity_int,
+                    min_booking_capacity=int(min_booking_capacity),
+                    max_booking_capacity=int(max_booking_capacity),
                     description=description,
                     equipment=equipment,
+                    is_available=is_available,
+                    availability_status=availability_status,
+                    auto_status_updates=auto_status_updates,
                 )
                 if image:
                     room.image = image
@@ -1446,7 +1584,8 @@ def add_room_view(request):
         'user': request.user,
         'user_role': user_role,
         'room_types': room_types,
-        'action': 'add'
+        'action': 'add',
+        'room': None,
     }
     return render(request, 'AdminPage/admin_room_form.html', context)
 
@@ -1819,6 +1958,62 @@ def admin_room_detail_view(request, room_id):
     
     try:
         room = Room.objects.get(id=room_id)
+
+        if request.method == 'POST':
+            action = request.POST.get('action')
+            if action == 'add_occupied_rule':
+                try:
+                    rule_name = request.POST.get('rule_name', '').strip() or 'Occupied Rule'
+                    rule_type = request.POST.get('rule_type', 'fixed')
+                    fixed_date_str = request.POST.get('fixed_date', '').strip()
+                    start_date_str = request.POST.get('start_date', '').strip()
+                    end_date_str = request.POST.get('end_date', '').strip()
+                    weekdays = request.POST.getlist('weekdays')
+                    start_time_str = request.POST.get('start_time', '').strip()
+                    end_time_str = request.POST.get('end_time', '').strip()
+                    is_active = request.POST.get('is_active') == 'on'
+
+                    if not start_time_str or not end_time_str:
+                        messages.error(request, 'Start and end time are required for occupied rules.')
+                        return redirect('accounts:admin_room_detail', room_id=room.id)
+
+                    start_time_value = datetime.strptime(start_time_str, '%H:%M').time()
+                    end_time_value = datetime.strptime(end_time_str, '%H:%M').time()
+
+                    fixed_date = datetime.strptime(fixed_date_str, '%Y-%m-%d').date() if fixed_date_str else None
+                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+                    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+                    weekdays_value = ','.join(sorted(weekdays)) if weekdays else ''
+
+                    RoomOccupiedTimeRule.objects.create(
+                        room=room,
+                        name=rule_name,
+                        rule_type=rule_type,
+                        fixed_date=fixed_date,
+                        start_date=start_date,
+                        end_date=end_date,
+                        weekdays=weekdays_value,
+                        start_time=start_time_value,
+                        end_time=end_time_value,
+                        is_active=is_active,
+                    )
+                    messages.success(request, 'Occupied time rule added successfully.')
+                except ValueError:
+                    messages.error(request, 'Invalid date or time format for occupied rule.')
+                except Exception as exc:
+                    messages.error(request, f'Failed to add occupied rule: {exc}')
+
+                return redirect('accounts:admin_room_detail', room_id=room.id)
+
+            if action == 'delete_occupied_rule':
+                rule_id = request.POST.get('rule_id')
+                try:
+                    rule = RoomOccupiedTimeRule.objects.get(id=rule_id, room=room)
+                    rule.delete()
+                    messages.success(request, 'Occupied time rule deleted successfully.')
+                except RoomOccupiedTimeRule.DoesNotExist:
+                    messages.error(request, 'Occupied rule not found.')
+                return redirect('accounts:admin_room_detail', room_id=room.id)
         
         # Get room bookings
         bookings = Booking.objects.filter(room=room).order_by('-start_time')
@@ -1844,9 +2039,12 @@ def admin_room_detail_view(request, room_id):
             'room': room,
             'bookings': bookings[:20],  # Limit to 20 recent bookings
             'today_bookings': today_bookings,
+            'upcoming_bookings': upcoming_bookings,
             'total_bookings': total_bookings,
             'confirmed_bookings': confirmed_bookings,
             'cancelled_bookings': cancelled_bookings,
+            'occupied_rules': room.occupied_rules.all().order_by('-is_active', 'rule_type', 'start_time'),
+            'today_timeline': room.get_status_timeline(today),
         }
         
         return render(request, 'AdminPage/roomDetail.html', context)
@@ -1873,8 +2071,13 @@ def admin_add_room_view(request):
             room_number = request.POST.get('room_number', '').strip()
             room_type = request.POST.get('room_type', '')
             capacity = request.POST.get('capacity', '')
+            min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+            max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
             description = request.POST.get('description', '').strip()
             equipment = request.POST.get('equipment', '').strip()
+            is_available = request.POST.get('is_available', 'on') == 'on'
+            availability_status = request.POST.get('availability_status', 'available')
+            auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
             
             # Validation
             if not all([room_name, room_number, room_type, capacity]):
@@ -1903,23 +2106,19 @@ def admin_add_room_view(request):
                 })
             
             # Check if room number already exists
-            if Room.objects.filter(room_number=room_number).exists():
-                messages.error(request, f'Room number "{room_number}" already exists.')
-                return render(request, 'AdminPage/addRoom.html', {
-                    'user': request.user,
-                    'user_role': user_role,
-                    'room_types': Room.ROOM_TYPES,
-                })
-            
             # Create room
             room = Room.objects.create(
                 name=room_name,
                 room_number=room_number,
                 room_type=room_type,
                 capacity=capacity,
+                min_booking_capacity=int(min_booking_capacity),
+                max_booking_capacity=int(max_booking_capacity),
                 description=description,
                 equipment=equipment,
-                is_available=True
+                is_available=is_available,
+                availability_status=availability_status,
+                auto_status_updates=auto_status_updates,
             )
             
             messages.success(request, f'Room "{room_name}" ({room_number}) created successfully!')
@@ -1930,7 +2129,8 @@ def admin_add_room_view(request):
             'user': request.user,
             'user_role': user_role,
             'room_types': Room.ROOM_TYPES,
-            'action': 'add'
+            'action': 'add',
+            'room': None,
         }
         
         return render(request, 'AdminPage/admin_room_form.html', context)
@@ -1954,9 +2154,14 @@ def admin_edit_room_view(request, room_id):
             room_number = request.POST.get('room_number', '').strip()
             room_type = request.POST.get('room_type', '')
             capacity = request.POST.get('capacity', '')
+            min_booking_capacity = request.POST.get('min_booking_capacity', 1)
+            max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
             description = request.POST.get('description', '').strip()
             equipment = request.POST.get('equipment', '').strip()
             room_image = request.FILES.get('room_image')  
+            is_available = request.POST.get('is_available', 'on') == 'on'
+            availability_status = request.POST.get('availability_status', 'available')
+            auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
             
             # Validation
             if not all([room_name, room_number, room_type, capacity]):
@@ -1995,8 +2200,13 @@ def admin_edit_room_view(request, room_id):
             room.room_number = room_number
             room.room_type = room_type
             room.capacity = capacity
+            room.min_booking_capacity = int(min_booking_capacity)
+            room.max_booking_capacity = int(max_booking_capacity)
             room.description = description
             room.equipment = equipment
+            room.is_available = is_available
+            room.availability_status = availability_status
+            room.auto_status_updates = auto_status_updates
             
             # Update image if provided
             if room_image:
@@ -2209,11 +2419,17 @@ def ajax_toggle_room_availability(request, room_id):
         try:
             from booking.models import Room
             room = Room.objects.get(id=room_id)
-            
-            room.is_available = not room.is_available
+
+            effective_available = room.is_available and room.availability_status != 'unavailable'
+            if effective_available:
+                room.is_available = False
+                room.availability_status = 'unavailable'
+            else:
+                room.is_available = True
+                room.availability_status = 'available'
             room.save()
             
-            status = 'available' if room.is_available else 'unavailable'
+            status = 'available' if (room.is_available and room.availability_status != 'unavailable') else 'maintenance'
             
             return JsonResponse({
                 'success': True,
@@ -2221,7 +2437,8 @@ def ajax_toggle_room_availability(request, room_id):
                 'room': {
                     'id': room.id,
                     'name': room.name,
-                    'is_available': room.is_available
+                    'is_available': room.is_available,
+                    'availability_status': room.availability_status
                 }
             })
             
@@ -2240,6 +2457,47 @@ def ajax_toggle_room_availability(request, room_id):
         'success': False, 
         'error': 'Invalid request method.'
     })
+
+
+@login_required
+def room_status_timeline_ajax(request):
+    """Return per-hour room status timeline for a selected date."""
+    room_id = request.GET.get('room_id')
+    date_str = request.GET.get('date')
+
+    if not room_id or not date_str:
+        return JsonResponse({'success': False, 'error': 'room_id and date are required'}, status=400)
+
+    try:
+        room = Room.objects.get(id=room_id)
+        target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+        slots = room.get_status_timeline(target_date)
+        serialized_slots = []
+        for slot in slots:
+            serialized_slots.append({
+                'start': slot['start_label'],
+                'end': slot['end_label'],
+                'status': slot['status'],
+            })
+
+        return JsonResponse({
+            'success': True,
+            'room': {
+                'id': room.id,
+                'name': room.name,
+                'room_number': room.room_number,
+                'capacity': room.capacity,
+                'min_booking_capacity': getattr(room, 'min_booking_capacity', 1),
+                'max_booking_capacity': getattr(room, 'max_booking_capacity', room.capacity),
+                'auto_status_updates': getattr(room, 'auto_status_updates', True),
+            },
+            'slots': serialized_slots,
+        })
+    except Room.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Room not found'}, status=404)
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Invalid date format'}, status=400)
 
 @login_required
 @admin_required
@@ -2446,6 +2704,16 @@ def booking_detail_view(request, booking_id):
         from datetime import timedelta
         
         booking = Booking.objects.get(id=booking_id, user=request.user)
+
+        duration_seconds = int((booking.end_time - booking.start_time).total_seconds())
+        duration_hours = duration_seconds // 3600
+        duration_minutes = (duration_seconds % 3600) // 60
+        if duration_hours > 0 and duration_minutes > 0:
+            duration_display = f"{duration_hours}h {duration_minutes}m"
+        elif duration_hours > 0:
+            duration_display = f"{duration_hours}h"
+        else:
+            duration_display = f"{duration_minutes}m"
         
         # Calculate cancellation availability and penalty status
         current_time = timezone.now()
@@ -2465,6 +2733,7 @@ def booking_detail_view(request, booking_id):
             'hours_until_booking': time_until_booking.total_seconds() / 3600,
             'late_cancellation': late_cancellation,
             'cancellation_notice_hours': CANCELLATION_NOTICE_HOURS,
+            'duration_display': duration_display,
         }
         
         return render(request, 'UserPage/booking-detail.html', context)
@@ -2500,12 +2769,7 @@ def check_availability_ajax(request):
             except Room.DoesNotExist:
                 return JsonResponse({'available': False, 'message': 'Room not found'})
             
-            # Check if room is available
-            if not room.is_available or getattr(room, 'availability_status', 'available') != 'available':
-                return JsonResponse({'available': False, 'message': 'Room is not available for booking'})
-            
             # Parse date and time
-            from datetime import datetime
             try:
                 booking_date = datetime.strptime(date, '%Y-%m-%d').date()
                 start_time_obj = datetime.strptime(start_time, '%H:%M').time()
@@ -2515,6 +2779,16 @@ def check_availability_ajax(request):
                 end_datetime = timezone.make_aware(datetime.combine(booking_date, end_time_obj))
             except ValueError:
                 return JsonResponse({'available': False, 'message': 'Invalid date or time format'})
+
+            room_status = room.get_current_status(start_datetime) if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'unavailable')
+            if room_status != 'available':
+                return JsonResponse({'available': False, 'message': f'Room is currently {room_status} for booking'})
+
+            if room.is_occupied_by_admin_rule(start_datetime, end_datetime):
+                return JsonResponse({
+                    'available': False,
+                    'message': 'Room is occupied for the selected period by admin schedule rules'
+                })
             
             now = timezone.now()
 
@@ -2587,6 +2861,8 @@ def check_availability_ajax(request):
                 'room_info': {
                     'name': room.name,
                     'capacity': room.capacity,
+                    'min_booking_capacity': getattr(room, 'min_booking_capacity', 1),
+                    'max_booking_capacity': getattr(room, 'max_booking_capacity', room.capacity),
                     'room_type': room.get_room_type_display(),
                     'equipment': room.equipment
                 }
@@ -2604,8 +2880,7 @@ def get_rooms_ajax(request):
     room_type = request.GET.get('room_type', '')
     capacity_min = request.GET.get('capacity_min', '')
     
-    # Start with available rooms
-    rooms = Room.objects.filter(is_available=True)
+    rooms = Room.objects.all()
     
     # Filter by building if provided
     if building_id:
@@ -2644,12 +2919,16 @@ def get_rooms_ajax(request):
                 'name': room.name,
                 'room_number': room.room_number,
                 'capacity': room.capacity,
+                'min_booking_capacity': getattr(room, 'min_booking_capacity', 1),
+                'max_booking_capacity': getattr(room, 'max_booking_capacity', room.capacity),
                 'room_type': room.room_type,
                 'room_type_display': room.get_room_type_display(),
                 'description': room.description or '',
                 'equipment': room.equipment or '',
                 'location': f"{room.name} ({room.room_number})",
                 'available': room.is_available,
+                'availability_status': getattr(room, 'availability_status', 'available'),
+                'current_status': room.get_current_status().replace('unavailable', 'maintenance') if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'maintenance'),
                 'next_booking': next_booking.start_time.strftime('%Y-%m-%d %H:%M') if next_booking else None
             })
         except Exception as e:
@@ -2817,7 +3096,8 @@ def get_room_details_ajax(request):
     
     try:
         
-        room = Room.objects.get(id=room_id, is_available=True)
+        room = Room.objects.get(id=room_id)
+        current_status = room.get_current_status().replace('unavailable', 'maintenance') if hasattr(room, 'get_current_status') else ('available' if room.is_available else 'maintenance')
         
         return JsonResponse({
             'success': True,
@@ -2827,7 +3107,11 @@ def get_room_details_ajax(request):
                 'room_number': room.room_number,
                 'building_name': room.room_number,
                 'capacity': room.capacity,
+                'min_booking_capacity': getattr(room, 'min_booking_capacity', 1),
+                'max_booking_capacity': getattr(room, 'max_booking_capacity', room.capacity),
                 'room_type': room.room_type,
+                'current_status': current_status,
+                'auto_status_updates': getattr(room, 'auto_status_updates', True),
             }
         })
     except Room.DoesNotExist:

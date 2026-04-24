@@ -2,7 +2,23 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-from .models import Room, Booking, BookingRule, Announcement
+from .models import Room, Booking, BookingRule, Announcement, RoomOccupiedTimeRule
+
+
+class RoomOccupiedTimeRuleInline(admin.TabularInline):
+    model = RoomOccupiedTimeRule
+    extra = 1
+    fields = (
+        'name',
+        'rule_type',
+        'fixed_date',
+        'weekdays',
+        'start_date',
+        'end_date',
+        'start_time',
+        'end_time',
+        'is_active',
+    )
 
 # @admin.register(CustomUser)
 class CustomUserAdmin(UserAdmin):
@@ -95,6 +111,7 @@ class RoomAdmin(admin.ModelAdmin):
     search_fields = ('name', 'room_number', 'description')
 
     readonly_fields = ('created_at', 'updated_at')
+    inlines = [RoomOccupiedTimeRuleInline]
 
     fieldsets = (
         ('Basic Information', {
@@ -104,7 +121,7 @@ class RoomAdmin(admin.ModelAdmin):
             'fields': ('description', 'equipment')
         }),
         ('Status', {
-            'fields': ('availability_status', 'is_available')
+            'fields': ('availability_status', 'is_available', 'auto_status_updates')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -123,6 +140,22 @@ class RoomAdmin(admin.ModelAdmin):
                 '<span style="color: red; font-weight: bold;">✗ Not Bookable</span>'
             )
     is_bookable_status.short_description = 'Bookable'
+
+
+@admin.register(RoomOccupiedTimeRule)
+class RoomOccupiedTimeRuleAdmin(admin.ModelAdmin):
+    list_display = (
+        'room',
+        'name',
+        'rule_type',
+        'fixed_date',
+        'weekdays',
+        'start_time',
+        'end_time',
+        'is_active',
+    )
+    list_filter = ('rule_type', 'is_active', 'room')
+    search_fields = ('room__name', 'room__room_number', 'name')
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):

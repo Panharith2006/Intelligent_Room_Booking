@@ -1,7 +1,3 @@
-"""
-Agentic RAG Orchestrator
-Main RAG system integrating all advanced components
-"""
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -16,25 +12,7 @@ from ai.vector_store import VectorStore
 
 logger = logging.getLogger(__name__)
 
-
 class AgenticRAG:
-    """
-    Advanced Agentic RAG system with full pipeline.
-    
-    Pipeline:
-    1. Query Processing (decomposition, expansion, entity extraction)
-    2. Multi-Strategy Retrieval (semantic, keyword, structured)
-    3. Re-Ranking (cross-encoder + hybrid scoring)
-    4. Self-Reflection (relevance, support, utility checks)
-    5. Response Generation (grounded in retrieved context)
-    
-    Features:
-    - Tool-augmented retrieval
-    - ReAct reasoning pattern
-    - Self-correction mechanisms
-    - Context compression
-    - Multi-turn conversation handling
-    """
     
     def __init__(
         self,
@@ -44,16 +22,6 @@ class AgenticRAG:
         enable_reranking: bool = True,
         enable_multi_query: bool = True
     ):
-        """
-        Initialize Agentic RAG system.
-        
-        Args:
-            vector_store: Vector database for semantic search
-            llm_client: LLM client for generation
-            enable_self_rag: Enable self-reflection
-            enable_reranking: Enable re-ranking
-            enable_multi_query: Enable multi-query retrieval
-        """
         # Initialize vector store
         self.vector_store = vector_store or VectorStore()
         self.llm_client = llm_client
@@ -84,7 +52,7 @@ class AgenticRAG:
         if self.enable_reranking:
             try:
                 self.reranker = HybridReRanker()
-                logger.info("✓ Re-ranking enabled")
+                logger.info(" Re-ranking enabled")
             except Exception as e:
                 logger.warning(f"Re-ranking initialization failed: {e}")
                 self.enable_reranking = False
@@ -92,9 +60,9 @@ class AgenticRAG:
         # Self-RAG
         if self.enable_self_rag:
             self.self_rag = SelfRAG(self.retriever, llm_client)
-            logger.info("✓ Self-RAG enabled")
+            logger.info(" Self-RAG enabled")
         
-        logger.info(f"✓ Agentic RAG initialized (Self-RAG: {self.enable_self_rag}, "
+        logger.info(f" Agentic RAG initialized (Self-RAG: {self.enable_self_rag}, "
                    f"Re-ranking: {self.enable_reranking}, Multi-Query: {self.enable_multi_query})")
     
     def process_query(
@@ -106,26 +74,7 @@ class AgenticRAG:
         top_k: int = 5,
         use_self_rag: bool = None
     ) -> Dict:
-        """
-        Main entry point for query processing.
         
-        Args:
-            query: User's natural language query
-            context: Session context (e.g., current booking slots)
-            conversation_history: Previous conversation turns
-            user_info: User information (email, name, preferences)
-            top_k: Number of documents to retrieve
-            use_self_rag: Override self-rag setting
-            
-        Returns:
-            Dict containing:
-                - response_text: Generated response
-                - retrieved_docs: Retrieved documents with scores
-                - entities: Extracted entities
-                - intent: Query intent
-                - reflection_scores: Self-RAG scores (if enabled)
-                - metadata: Additional metadata
-        """
         logger.info(f"=" * 80)
         logger.info(f"Processing query: {query}")
         logger.info(f"=" * 80)
@@ -194,18 +143,36 @@ class AgenticRAG:
         
         if use_self_rag_flag:
             logger.info("Step 4: Self-RAG Generation...")
-            self_rag_result = self.self_rag.generate_with_reflection(
-                query=query,
-                entities=entities,
-                intent=intent,
-                context=context,
-                max_iterations=2
-            )
-            
-            response_text = self_rag_result['response']
-            reflection_scores = self_rag_result['reflection_scores']
-            
-            logger.info(f"  Reflection scores: {reflection_scores}")
+            try:
+                self_rag_result = self.self_rag.generate_with_reflection(
+                    query=query,
+                    entities=entities,
+                    intent=intent,
+                    context=context,
+                    max_iterations=2
+                )
+                
+                # Safely extract response with fallback
+                response_text = self_rag_result.get('response') or self._generate_response(
+                    query=query,
+                    retrieved_docs=compressed_docs,
+                    entities=entities,
+                    intent=intent,
+                    context=context
+                )
+                reflection_scores = self_rag_result.get('reflection_scores', {})
+                
+                logger.info(f"  Reflection scores: {reflection_scores}")
+            except Exception as e:
+                logger.warning(f"Self-RAG failed, falling back to standard generation: {e}")
+                response_text = self._generate_response(
+                    query=query,
+                    retrieved_docs=compressed_docs,
+                    entities=entities,
+                    intent=intent,
+                    context=context
+                )
+                reflection_scores = None
         else:
             logger.info("Step 4: Standard Generation...")
             response_text = self._generate_response(
@@ -257,14 +224,6 @@ class AgenticRAG:
         query: str,
         entities: Dict
     ) -> List[Dict]:
-        """
-        Compress retrieved context to keep only relevant information.
-        
-        Strategies:
-        1. Remove redundant documents
-        2. Extract only query-relevant sentences
-        3. Summarize long documents
-        """
         if not documents:
             return []
         
@@ -314,14 +273,7 @@ class AgenticRAG:
         intent: Dict,
         context: Dict
     ) -> str:
-        """
-        Generate response based on retrieved documents.
-        
-        This is a template-based fallback. In production, this would:
-        1. Construct structured prompt with retrieved context
-        2. Call LLM (local Ollama or Groq)
-        3. Parse and format response
-        """
+
         if not retrieved_docs:
             return self._handle_no_results(query, entities, intent)
         
@@ -353,7 +305,8 @@ class AgenticRAG:
         entities: Dict,
         context: Dict
     ) -> str:
-        """Generate booking-specific response."""
+        
+
         # Check if we have room information from structured query
         room_docs = [d for d in docs if d.get('source') == 'structured']
         
@@ -412,7 +365,8 @@ class AgenticRAG:
         docs: List[Dict],
         entities: Dict
     ) -> str:
-        """Generate information-seeking response."""
+    
+
         # Combine top documents
         info = []
         for doc in docs[:3]:
@@ -436,7 +390,8 @@ class AgenticRAG:
         docs: List[Dict],
         entities: Dict
     ) -> str:
-        """Generate availability check response."""
+        
+        
         room_docs = [d for d in docs if d.get('source') == 'structured']
         
         if room_docs and entities.get('date'):
@@ -466,7 +421,8 @@ class AgenticRAG:
         return response
     
     def _handle_no_results(self, query: str, entities: Dict, intent: Dict) -> str:
-        """Handle case when no documents retrieved."""
+        
+
         response = "I couldn't find relevant information for your query. "
         
         # Provide helpful suggestions
@@ -486,11 +442,7 @@ class AgenticRAG:
         return response
     
     def get_conversation_summary(self, conversation_history: List[Dict]) -> str:
-        """
-        Summarize conversation history for context.
         
-        Useful for multi-turn conversations.
-        """
         if not conversation_history:
             return ""
         
@@ -517,19 +469,7 @@ def process_with_agentic_rag(
     user_info: Dict = None,
     top_k: int = 5
 ) -> Dict:
-    """
-    Convenience function for agentic RAG processing.
-    
-    Args:
-        query: User query
-        vector_store: Vector database
-        context: Session context
-        user_info: User information
-        top_k: Number of results
-        
-    Returns:
-        Processing result dict
-    """
+   
     rag = AgenticRAG(vector_store=vector_store)
     return rag.process_query(
         query=query,

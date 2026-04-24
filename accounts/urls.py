@@ -34,6 +34,7 @@ urlpatterns = [
     path('ajax/room-list/', views.ajax_room_list, name='ajax_room_list'),
     path('ajax/get-buildings/', views.get_buildings_ajax, name='get_buildings_ajax'),
     path('ajax/get-room-details/', views.get_room_details_ajax, name='get_room_details_ajax'),
+    path('ajax/room-status-timeline/', views.room_status_timeline_ajax, name='room_status_timeline_ajax'),
 
     # AJAX Endpoints for Admin Functions
     path('admin/ajax/users/<int:user_id>/toggle-status/', views.ajax_toggle_user_status, name='ajax_toggle_user_status'),

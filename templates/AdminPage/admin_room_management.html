@@ -229,13 +229,13 @@
                     <div class="row">
                         {% for room in rooms %}
                             <div class="col-md-6 col-lg-4 mb-3">
-                                <div class="room-card card h-100 {% if room.is_available %}room-status-available{% else %}room-status-unavailable{% endif %}">
+                                <div class="room-card card h-100 {% if room.is_available and room.availability_status != 'unavailable' %}room-status-available{% else %}room-status-unavailable{% endif %}">
                                     <!-- Room Image -->
                                     {% if room.image %}
                                         <div class="room-image" style="background-image: url('{{ room.image.url }}'); height: 200px; background-size: cover; background-position: center; position: relative;">
                                             <div class="room-status-overlay" style="position: absolute; top: 10px; right: 10px;">
-                                                <span class="badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
-                                                    {% if room.is_available %}Available{% else %}Unavailable{% endif %}
+                                                <span class="badge {% if room.is_available and room.availability_status != 'unavailable' %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {% if room.is_available and room.availability_status != 'unavailable' %}Available{% else %}Unavailable{% endif %}
                                                 </span>
                                             </div>
                                         </div>
@@ -246,8 +246,8 @@
                                                 <p class="mb-0">No image uploaded</p>
                                             </div>
                                             <div class="room-status-overlay" style="position: absolute; top: 10px; right: 10px;">
-                                                <span class="badge {% if room.is_available %}bg-success{% else %}bg-danger{% endif %}">
-                                                    {% if room.is_available %}Available{% else %}Unavailable{% endif %}
+                                                <span class="badge {% if room.is_available and room.availability_status != 'unavailable' %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {% if room.is_available and room.availability_status != 'unavailable' %}Available{% else %}Unavailable{% endif %}
                                                 </span>
                                             </div>
                                         </div>
@@ -269,6 +269,80 @@
                                                 <i class="fas fa-tools"></i> {{ room.equipment|truncatewords:10 }}
                                             </p>
                                         {% endif %}
+
+                                        <div class="border rounded p-2 bg-light mb-2">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <strong class="small">Occupied Rules</strong>
+                                                <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#ruleForm{{ room.id }}" aria-expanded="false" aria-controls="ruleForm{{ room.id }}">
+                                                    <i class="fas fa-plus"></i> Add
+                                                </button>
+                                            </div>
+
+                                            {% if room.occupied_rules.all %}
+                                                <div class="small mb-2" style="max-height: 110px; overflow:auto;">
+                                                    {% for rule in room.occupied_rules.all %}
+                                                        <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+                                                            <span>{{ rule.name }}: {{ rule.start_time|time:'H:i' }}-{{ rule.end_time|time:'H:i' }}</span>
+                                                            <form method="post" class="d-inline">
+                                                                {% csrf_token %}
+                                                                <input type="hidden" name="action" value="delete_occupied_rule">
+                                                                <input type="hidden" name="room_id" value="{{ room.id }}">
+                                                                <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                                                <button type="submit" class="btn btn-sm btn-link text-danger p-0" onclick="return confirm('Delete this occupied rule?');">Delete</button>
+                                                            </form>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% else %}
+                                                <div class="small text-muted mb-2">No occupied rules set.</div>
+                                            {% endif %}
+
+                                            <div class="collapse" id="ruleForm{{ room.id }}">
+                                                <form method="post" class="small">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="add_occupied_rule">
+                                                    <input type="hidden" name="room_id" value="{{ room.id }}">
+
+                                                    <div class="mb-2">
+                                                        <input class="form-control form-control-sm" type="text" name="rule_name" placeholder="Rule name" required>
+                                                    </div>
+                                                    <div class="mb-2">
+                                                        <select class="form-select form-select-sm rule-type-select" name="rule_type" data-room-id="{{ room.id }}">
+                                                            <option value="fixed">Fixed Date</option>
+                                                            <option value="recurring_weekly">Recurring Weekly</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-2" id="fixedDateWrap{{ room.id }}">
+                                                        <input class="form-control form-control-sm" type="date" name="fixed_date" id="fixedDateInput{{ room.id }}">
+                                                    </div>
+                                                    <div class="mb-2 d-none" id="weekdaysWrap{{ room.id }}">
+                                                        <div class="d-flex flex-wrap gap-1">
+                                                            <label><input type="checkbox" name="weekdays" value="0"> M</label>
+                                                            <label><input type="checkbox" name="weekdays" value="1"> T</label>
+                                                            <label><input type="checkbox" name="weekdays" value="2"> W</label>
+                                                            <label><input type="checkbox" name="weekdays" value="3"> T</label>
+                                                            <label><input type="checkbox" name="weekdays" value="4"> F</label>
+                                                            <label><input type="checkbox" name="weekdays" value="5"> S</label>
+                                                            <label><input type="checkbox" name="weekdays" value="6"> S</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row g-1 mb-2 d-none" id="dateRangeWrap{{ room.id }}">
+                                                        <div class="col-6"><input class="form-control form-control-sm" type="date" name="start_date" placeholder="Start"></div>
+                                                        <div class="col-6"><input class="form-control form-control-sm" type="date" name="end_date" placeholder="End"></div>
+                                                    </div>
+                                                    <div class="row g-1 mb-2">
+                                                        <div class="col-6"><input class="form-control form-control-sm" type="time" name="start_time" required></div>
+                                                        <div class="col-6"><input class="form-control form-control-sm" type="time" name="end_time" required></div>
+                                                    </div>
+                                                    <div class="form-check mb-2">
+                                                        <input class="form-check-input" type="checkbox" name="is_active" id="ruleActive{{ room.id }}" checked>
+                                                        <label class="form-check-label" for="ruleActive{{ room.id }}">Active</label>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-sm btn-primary w-100">Save Rule</button>
+                                                </form>
+                                            </div>
+                                        </div>
+
                                         <div class="room-actions mt-2">
                                             <button type="button" class="btn btn-view btn-sm" 
                                                     onclick="viewRoom({{ room.id }})">
@@ -279,8 +353,8 @@
                                                 <i class="fas fa-edit"></i> Edit
                                             </button>
                                             <button type="button" class="btn btn-toggle btn-sm"
-                                                    onclick="toggleAvailability({{ room.id }}, '{{ room.name }}', {{ room.is_available|yesno:'true,false' }})">
-                                                <i class="fas fa-power-off"></i> {% if room.is_available %}Disable{% else %}Enable{% endif %}
+                                                    onclick="toggleAvailability({{ room.id }}, '{{ room.name }}', {% if room.is_available and room.availability_status != 'unavailable' %}true{% else %}false{% endif %})">
+                                                <i class="fas fa-power-off"></i> {% if room.is_available and room.availability_status != 'unavailable' %}Disable{% else %}Enable{% endif %}
                                             </button>
                                             <button type="button" class="btn btn-delete btn-sm"
                                                     onclick="deleteRoom({{ room.id }}, '{{ room.name }}')">
@@ -344,6 +418,39 @@
                                 <div class="mb-3">
                                     <label for="capacity" class="form-label">Capacity *</label>
                                     <input type="number" class="form-control" id="capacity" name="capacity" min="1" max="1000" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="min_booking_capacity" class="form-label">Min Booking Capacity *</label>
+                                    <input type="number" class="form-control" id="min_booking_capacity" name="min_booking_capacity" min="1" value="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="max_booking_capacity" class="form-label">Max Booking Capacity *</label>
+                                    <input type="number" class="form-control" id="max_booking_capacity" name="max_booking_capacity" min="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="availability_status" class="form-label">Availability Status *</label>
+                                    <select class="form-select" id="availability_status" name="availability_status" required>
+                                        <option value="available" selected>Available</option>
+                                        <option value="unavailable">Unavailable</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="is_available" name="is_available" checked>
+                                    <label class="form-check-label" for="is_available">Room active for booking</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" type="checkbox" id="auto_status_updates" name="auto_status_updates" checked>
+                                    <label class="form-check-label" for="auto_status_updates">Auto update occupied status</label>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -494,6 +601,32 @@
                     }
                 }
             }
+
+            document.querySelectorAll('.rule-type-select').forEach(function(selectEl) {
+                function syncRuleTypeFields() {
+                    const roomId = selectEl.dataset.roomId;
+                    const isFixed = selectEl.value === 'fixed';
+                    const fixedDateWrap = document.getElementById(`fixedDateWrap${roomId}`);
+                    const fixedDateInput = document.getElementById(`fixedDateInput${roomId}`);
+                    const weekdaysWrap = document.getElementById(`weekdaysWrap${roomId}`);
+                    const dateRangeWrap = document.getElementById(`dateRangeWrap${roomId}`);
+
+                    if (isFixed) {
+                        fixedDateWrap.classList.remove('d-none');
+                        weekdaysWrap.classList.add('d-none');
+                        dateRangeWrap.classList.add('d-none');
+                        fixedDateInput.required = true;
+                    } else {
+                        fixedDateWrap.classList.add('d-none');
+                        weekdaysWrap.classList.remove('d-none');
+                        dateRangeWrap.classList.remove('d-none');
+                        fixedDateInput.required = false;
+                    }
+                }
+
+                selectEl.addEventListener('change', syncRuleTypeFields);
+                syncRuleTypeFields();
+            });
         });
     </script>
 

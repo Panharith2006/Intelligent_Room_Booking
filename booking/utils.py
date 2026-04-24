@@ -3,7 +3,6 @@ from datetime import timedelta
 from .models import Booking, BookingRule
 
 class BookingRuleEnforcer:
-    """Utility class to enforce booking rules"""
     
     def __init__(self):
         self.rules = BookingRule.objects.first()

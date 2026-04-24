@@ -39,7 +39,7 @@
             {% for announcement in announcements %}
             <div class="alert alert-{% if announcement.priority == 'urgent' %}danger{% elif announcement.priority == 'high' %}warning{% elif announcement.priority == 'normal' %}info{% else %}secondary{% endif %} alert-dismissible fade show" role="alert">
                 <h6 class="alert-heading mb-1">
-                    <i class="fas fa-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle{% elif announcement.announcement_type == 'maintenance' %}tools{% elif announcement.announcement_type == 'event' %}calendar{% else %}info-circle{% endif %}"></i>
+                    <i class="fas fa-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle{% elif announcement.announcement_type == 'event' %}calendar{% else %}info-circle{% endif %}"></i>
                     {{ announcement.title }}
                 </h6>
                 <p class="mb-1">{{ announcement.content }}</p>
@@ -85,10 +85,10 @@
                         <select id="roomSelect" name="room" class="form-control" required>
                             <option value="" disabled selected>Select Room</option>
                             {% for room in rooms %}
-                                {% if room.is_available %}
-                                    <option value="{{ room.id }}">{{ room.name }} ({{ room.room_number }}) [Available]</option>
+                                {% if not room.is_available or room.availability_status == 'unavailable' %}
+                                    <option value="{{ room.id }}" data-min-capacity="{{ room.min_booking_capacity|default:1 }}" data-max-capacity="{{ room.max_booking_capacity|default:room.capacity }}" data-effective-status="unavailable" disabled style="color: #aaa;">{{ room.name }} ({{ room.room_number }}) [Unavailable] - Capacity {{ room.min_booking_capacity|default:1 }}-{{ room.max_booking_capacity|default:room.capacity }}</option>
                                 {% else %}
-                                    <option value="{{ room.id }}" disabled style="color: #aaa;">{{ room.name }} ({{ room.room_number }}) [Unavailable]</option>
+                                    <option value="{{ room.id }}" data-min-capacity="{{ room.min_booking_capacity|default:1 }}" data-max-capacity="{{ room.max_booking_capacity|default:room.capacity }}" data-effective-status="available">{{ room.name }} ({{ room.room_number }}) [Available] - Capacity {{ room.min_booking_capacity|default:1 }}-{{ room.max_booking_capacity|default:room.capacity }}</option>
                                 {% endif %}
                             {% endfor %}
                         </select>
@@ -135,7 +135,8 @@
                 
                 <div class="form-group">
                     <div class="section-title">Number of Attendees</div>
-                    <input type="number" name="attendees" class="form-control" placeholder="Enter expected number of attendees" min="1" max="200" required>
+                    <input type="number" id="attendeesInput" name="attendees" class="form-control" placeholder="Enter expected number of attendees" min="1" max="200" required>
+                    <small id="capacityRangeHint" class="text-muted">Select a room to see allowed attendee range.</small>
                 </div>
                             {% include 'includes/chatbot_widget.html' %}
                 
@@ -145,6 +146,19 @@
                 </div>
                 
                 <div class="form-group">
+                    <div class="section-title">Room Status Timeline</div>
+                    <div id="roomTimeline" class="border rounded p-2 bg-light">
+                        <small class="text-muted">Select room and date to view hourly status from 07:00 to 22:00.</small>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="section-title">Usage Terms</div>
+                    <ul class="mb-2">
+                        <li>Do not damage furniture, equipment, or walls.</li>
+                        <li>Turn off AC, lights, and devices before leaving.</li>
+                        <li>Keep the room clean and return setup to original state.</li>
+                    </ul>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="policyAgreement" name="policy_agreement" required>
                         <label class="form-check-label" for="policyAgreement">
@@ -226,6 +240,75 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const roomSelect = document.getElementById('roomSelect');
+            const dateInput = document.getElementById('dateInput');
+            const attendeesInput = document.getElementById('attendeesInput');
+            const capacityRangeHint = document.getElementById('capacityRangeHint');
+            const timelineContainer = document.getElementById('roomTimeline');
+
+            function updateAttendeeRange() {
+                const selected = roomSelect.options[roomSelect.selectedIndex];
+                if (!selected || !selected.value) {
+                    attendeesInput.min = '1';
+                    attendeesInput.max = '200';
+                    capacityRangeHint.textContent = 'Select a room to see allowed attendee range.';
+                    return;
+                }
+
+                const minCap = parseInt(selected.dataset.minCapacity || '1', 10);
+                const maxCap = parseInt(selected.dataset.maxCapacity || '200', 10);
+                attendeesInput.min = String(minCap);
+                attendeesInput.max = String(maxCap);
+                capacityRangeHint.textContent = `Allowed attendees for this room: ${minCap}-${maxCap}`;
+
+                if (!attendeesInput.value || parseInt(attendeesInput.value, 10) < minCap) {
+                    attendeesInput.value = String(minCap);
+                }
+            }
+
+            function renderTimeline(slots) {
+                if (!slots || !slots.length) {
+                    timelineContainer.innerHTML = '<small class="text-muted">No timeline data available.</small>';
+                    return;
+                }
+
+                const html = slots.map(slot => {
+                    const statusClass = slot.status === 'available' ? 'success' : (slot.status === 'occupied' ? 'warning' : 'secondary');
+                    const label = slot.status.charAt(0).toUpperCase() + slot.status.slice(1);
+                    return `<div class="d-flex justify-content-between align-items-center border-bottom py-1"><span>${slot.start} - ${slot.end}</span><span class="badge bg-${statusClass}">${label}</span></div>`;
+                }).join('');
+
+                timelineContainer.innerHTML = html;
+            }
+
+            function fetchRoomTimeline() {
+                const roomId = roomSelect.value;
+                const dateValue = dateInput.value;
+
+                if (!roomId || !dateValue) {
+                    timelineContainer.innerHTML = '<small class="text-muted">Select room and date to view hourly status from 07:00 to 22:00.</small>';
+                    return;
+                }
+
+                fetch(`{% url 'accounts:room_status_timeline_ajax' %}?room_id=${roomId}&date=${dateValue}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (!data.success) {
+                            timelineContainer.innerHTML = `<small class="text-danger">${data.error || 'Unable to load timeline.'}</small>`;
+                            return;
+                        }
+                        renderTimeline(data.slots || []);
+                    })
+                    .catch(() => {
+                        timelineContainer.innerHTML = '<small class="text-danger">Unable to load timeline.</small>';
+                    });
+            }
+
+            roomSelect.addEventListener('change', () => {
+                updateAttendeeRange();
+                fetchRoomTimeline();
+            });
+
+            dateInput.addEventListener('change', fetchRoomTimeline);
 
             // Auto-fill form from URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -305,13 +388,24 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('dateInput').min = today;
 
+            updateAttendeeRange();
+            fetchRoomTimeline();
+
             // Form validation
             document.getElementById('bookingForm').addEventListener('submit', function(e) {
                 const startTime = document.getElementById('startTime').value;
                 const endTime = document.getElementById('endTime').value;
+                const minCap = parseInt(attendeesInput.min || '1', 10);
+                const maxCap = parseInt(attendeesInput.max || '200', 10);
+                const attendees = parseInt(attendeesInput.value || '0', 10);
                 if (startTime && endTime && startTime >= endTime) {
                     e.preventDefault();
                     alert('End time must be after start time.');
+                    return false;
+                }
+                if (Number.isNaN(attendees) || attendees < minCap || attendees > maxCap) {
+                    e.preventDefault();
+                    alert(`Attendees must be between ${minCap} and ${maxCap} for the selected room.`);
                     return false;
                 }
             });

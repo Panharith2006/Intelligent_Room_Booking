@@ -65,7 +65,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
                         <h6 class="alert-heading mb-1">
-                            <i class="bi bi-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle-fill{% elif announcement.announcement_type == 'maintenance' %}tools{% elif announcement.announcement_type == 'event' %}calendar-event{% else %}info-circle{% endif %}"></i>
+                            <i class="bi bi-{% if announcement.announcement_type == 'emergency' %}exclamation-triangle-fill{% elif announcement.announcement_type == 'event' %}calendar-event{% else %}info-circle{% endif %}"></i>
                             {{ announcement.title }}
                         </h6>
                         <p class="mb-1">{{ announcement.content }}</p>
@@ -203,6 +203,7 @@
                 facilities: "{{ room.facilities|default_if_none:''|escapejs }}",
                 features: {% if room.equipment %}"{{ room.equipment|escapejs }}".split(', '){% else %}[]{% endif %},
                 available: {{ room.available|yesno:"true,false" }},
+                current_status: "{{ room.current_status|default_if_none:'available'|escapejs }}",
                 description: "{{ room.description|escapejs }}",
                 imageUrl: "{{ room.image_url|escapejs }}",
                 room_number: "{{ room.room_number|escapejs }}"
@@ -230,6 +231,33 @@
         let currentRooms = [...rooms];
         let selectedRoom = null;
 
+        function getStatusMeta(status) {
+            if (status === 'occupied') {
+                return {
+                    label: 'Occupied',
+                    badgeBg: '#fff3cd',
+                    badgeColor: '#7a4f01',
+                    canBook: false
+                };
+            }
+
+            if (status === 'unavailable') {
+                return {
+                    label: 'Unavailable',
+                    badgeBg: '#ffeaea',
+                    badgeColor: '#c0392b',
+                    canBook: false
+                };
+            }
+
+            return {
+                label: 'Available',
+                badgeBg: '#e0f7fa',
+                badgeColor: '#0077b6',
+                canBook: true
+            };
+        }
+
         function displayRooms(roomsToShow) {
             const grid = document.getElementById('rooms-grid');
             const noResults = document.getElementById('no-results');
@@ -247,6 +275,8 @@
                 const roomCard = document.createElement('div');
                 roomCard.className = 'room-card';
                 roomCard.style = 'box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 12px; background: #fff; overflow: hidden; margin-bottom: 12px;';
+                const status = room.current_status || (room.available ? 'available' : 'unavailable');
+                const statusMeta = getStatusMeta(status);
                 // Extract building name robustly from location
                 let buildingName = room.location;
                 // Try to match 'Building X' or 'Bldg X' or just first word if not present
@@ -260,14 +290,14 @@
                 roomCard.innerHTML = `
                     ${room.imageUrl ? 
                         `<div class="room-image" style="background-image: url('${room.imageUrl}'); height: 160px; border-radius: 12px 12px 0 0; position: relative;">
-                            <div class="room-status ${room.available ? 'available' : 'unavailable'}" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${room.available ? '#e0f7fa' : '#ffeaea'}; color: ${room.available ? '#0077b6' : '#c0392b'}; font-weight: 600;">${room.available ? 'Available' : 'Unavailable'}</div>
+                            <div class="room-status" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${statusMeta.badgeBg}; color: ${statusMeta.badgeColor}; font-weight: 600;">${statusMeta.label}</div>
                         </div>` :
                         `<div class="room-no-image" style="height: 160px; background-color: #f8f9fa; display: flex; align-items: center; justify-content: center; border-radius: 12px 12px 0 0; position: relative; border-bottom: 1px solid #dee2e6;">
                             <div class="text-center text-muted">
                                 <i class="fas fa-image fa-2x mb-2"></i>
                                 <p class="mb-0">No image</p>
                             </div>
-                            <div class="room-status ${room.available ? 'available' : 'unavailable'}" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${room.available ? '#e0f7fa' : '#ffeaea'}; color: ${room.available ? '#0077b6' : '#c0392b'}; font-weight: 600;">${room.available ? 'Available' : 'Unavailable'}</div>
+                            <div class="room-status" style="position: absolute; top: 10px; right: 10px; padding: 4px 10px; border-radius: 8px; font-size: 0.95em; background: ${statusMeta.badgeBg}; color: ${statusMeta.badgeColor}; font-weight: 600;">${statusMeta.label}</div>
                         </div>`
                     }
                     <div class="room-info" style="padding: 16px;">
@@ -288,11 +318,11 @@
                             <button class="view-details-btn" onclick="viewRoomDetails(${room.id})" style="background:#f6f8fa; color:#667eea; border:none; border-radius:8px; padding:7px 16px; font-weight:600; cursor:pointer; transition:background 0.2s;">
                                 <i class="bi bi-info-circle"></i> View Details
                             </button>
-                            <button class="book-btn ${room.available ? '' : 'disabled'}" 
-                                ${room.available ? `onclick=\"redirectToBooking(${room.id})\"` : 'disabled'}
-                                style="background:${room.available ? '#667eea' : '#eee'}; color:${room.available ? '#fff' : '#aaa'}; border:none; border-radius:8px; padding:7px 16px; font-weight:600; cursor:${room.available ? 'pointer' : 'not-allowed'}; transition:background 0.2s;">
+                            <button class="book-btn ${statusMeta.canBook ? '' : 'disabled'}" 
+                                ${statusMeta.canBook ? `onclick=\"redirectToBooking(${room.id})\"` : 'disabled'}
+                                style="background:${statusMeta.canBook ? '#667eea' : '#eee'}; color:${statusMeta.canBook ? '#fff' : '#aaa'}; border:none; border-radius:8px; padding:7px 16px; font-weight:600; cursor:${statusMeta.canBook ? 'pointer' : 'not-allowed'}; transition:background 0.2s;">
                                 <i class="bi bi-calendar-check"></i>
-                                ${room.available ? 'Book Now' : 'Unavailable'}
+                                ${statusMeta.canBook ? 'Book Now' : statusMeta.label}
                             </button>
                         </div>
                     </div>
@@ -305,6 +335,8 @@
             const room = rooms.find(r => r.id === roomId);
             if (room) {
                 selectedRoom = room;
+                const status = room.current_status || (room.available ? 'available' : 'unavailable');
+                const statusMeta = getStatusMeta(status);
                 const modal = document.getElementById('quickBookingModal');
                 const roomDetails = document.getElementById('roomDetails');
                 // Extract building name robustly from location
@@ -318,8 +350,8 @@
                 roomDetails.innerHTML = `
                     <div class="room-detail-header" style="text-align: left;">
                         <h4 style="text-align: left;">${room.name}</h4>
-                        <span class="status-badge ${room.available ? 'available' : 'unavailable'}">
-                            ${room.available ? 'Available' : 'Unavailable'}
+                        <span class="status-badge" style="background:${statusMeta.badgeBg}; color:${statusMeta.badgeColor}; border-radius: 6px; padding: 4px 10px; font-weight: 600;">
+                            ${statusMeta.label}
                         </span>
                     </div>
                     <div class="room-detail-info" style="text-align: left;">
@@ -338,15 +370,25 @@
                                     : '<span style="color:#888;font-size:0.98em;">No facilities listed</span>')}
                         </div>
                     </div>
+                    <div style="margin-top:14px; text-align:left;">
+                        <a id="viewFullScheduleBtn" href="#" style="display:inline-block; background:#eef2ff; color:#4338ca; border-radius:8px; padding:6px 12px; font-weight:600; text-decoration:none;">
+                            View Full Schedule
+                        </a>
+                    </div>
                 `;
                 // Set book button state based on availability
                 const bookBtn = document.getElementById('modalBookBtn');
-                if (room.available) {
+                if (statusMeta.canBook) {
                     bookBtn.disabled = false;
                     bookBtn.classList.remove('disabled');
                 } else {
                     bookBtn.disabled = true;
                     bookBtn.classList.add('disabled');
+                }
+
+                const fullScheduleBtn = document.getElementById('viewFullScheduleBtn');
+                if (fullScheduleBtn) {
+                    fullScheduleBtn.href = `{% url 'accounts:room_schedule' %}?room_id=${room.id}`;
                 }
                 modal.style.display = 'block';
             }
@@ -359,10 +401,10 @@
                 const today = new Date();
                 today.setDate(today.getDate() + 1); // Tomorrow
                 const tomorrow = today.toISOString().split('T')[0];
-                const date = document.getElementById('date').value || tomorrow;
+                const date = tomorrow;
                 
                 // Get 9 AM as default time if none selected
-                const time = document.getElementById('time').value || '09:00';
+                const time = '09:00';
                 
                 console.log('Selected room:', room);
                 console.log('Date:', date, 'Time:', time);
@@ -491,10 +533,11 @@
             
             // Set current date as default
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-            
-            // Set minimum date to today
-            document.getElementById('date').min = today;
+            const dateInput = document.getElementById('date');
+            if (dateInput) {
+                dateInput.value = today;
+                dateInput.min = today;
+            }
         });
 
 

@@ -9,7 +9,7 @@ python-dotenv>=1.0.0
 
 # ===== AI & LLM =====
 semantic-kernel>=0.9.0              # Semantic Kernel for agent logic
-groq>=0.4.0                         # Groq API (fallback/backup)
+
 
 # ===== Advanced RAG Components =====
 # Text Splitting & Document Processing
@@ -71,10 +71,3 @@ dj-database-url>=2.0.0              # Database URL parsing
 
 # ===== Monitoring & Logging =====
 sentry-sdk>=1.40.0                  # Error tracking (optional)
-
-# ===== Optional: Advanced Features =====
-# Uncomment if needed:
-# rank-bm25>=0.2.2                  # BM25 keyword search
-# whoosh>=2.7.4                     # Full-text search
-# spacy>=3.5.0                      # Advanced NLP
-# tiktoken>=0.5.0                   # Token counting for OpenAI models

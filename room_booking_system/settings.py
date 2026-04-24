@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'accounts.apps.AccountsConfig',  # Your accounts app
     'booking',  # Your booking app
+    'ai',  # AI/RAG system
     'django.contrib.sites',
     'allauth',
     'allauth.account',

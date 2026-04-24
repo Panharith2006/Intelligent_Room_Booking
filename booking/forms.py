@@ -19,10 +19,14 @@ class RoomForm(forms.ModelForm):
             'room_number',
             'room_type',
             'capacity',
+            'min_booking_capacity',
+            'max_booking_capacity',
             'description',
             'equipment',
             'image',
+            'availability_status',
             'is_available',
+            'auto_status_updates',
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -41,6 +45,16 @@ class RoomForm(forms.ModelForm):
                 'min': '1',
                 'placeholder': 'Maximum occupancy'
             }),
+            'min_booking_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Minimum attendees allowed'
+            }),
+            'max_booking_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Maximum attendees allowed'
+            }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
@@ -55,7 +69,13 @@ class RoomForm(forms.ModelForm):
                 'class': 'form-control',
                 'accept': 'image/*'
             }),
+            'availability_status': forms.Select(attrs={
+                'class': 'form-control'
+            }),
             'is_available': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'auto_status_updates': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             })
         }
@@ -65,6 +85,25 @@ class RoomForm(forms.ModelForm):
         if capacity and capacity < 1:
             raise forms.ValidationError('Capacity must be at least 1.')
         return capacity
+
+    def clean(self):
+        """Validate room capacity range and allow duplicate room numbers."""
+        cleaned_data = super().clean()
+        capacity = cleaned_data.get('capacity')
+        min_booking_capacity = cleaned_data.get('min_booking_capacity')
+        max_booking_capacity = cleaned_data.get('max_booking_capacity')
+
+        if capacity and max_booking_capacity and max_booking_capacity > capacity:
+            self.add_error('max_booking_capacity', 'Maximum booking capacity cannot exceed room capacity.')
+
+        if min_booking_capacity and max_booking_capacity and min_booking_capacity > max_booking_capacity:
+            self.add_error('min_booking_capacity', 'Minimum booking capacity cannot exceed maximum booking capacity.')
+
+        room_number = cleaned_data.get('room_number')
+        if room_number:
+            cleaned_data['room_number'] = room_number.strip()
+
+        return cleaned_data
 
     def clean_room_number(self):
         """Allow duplicate room numbers for both new and existing rooms"""
@@ -89,20 +128,6 @@ class RoomForm(forms.ModelForm):
                 raise forms.ValidationError('Please upload a valid image file (JPG, PNG, GIF, etc.).')
         
         return image
-
-    def clean(self):
-        """Override clean method to explicitly allow duplicate room numbers with images"""
-        cleaned_data = super().clean()
-        
-        # Explicitly allow duplicate room numbers regardless of other fields
-        # This overrides any potential uniqueness validation
-        room_number = cleaned_data.get('room_number')
-        if room_number:
-            # No validation against existing room numbers - duplicates are explicitly allowed
-            pass
-        
-        return cleaned_data
-
 
 class RoomSearchForm(forms.Form):
     """Form for searching and filtering rooms"""
@@ -230,6 +255,13 @@ class BookingForm(forms.ModelForm):
             'type': 'time'
         })
     )
+
+    policy_agreement = forms.BooleanField(
+        required=False,
+        error_messages={
+            'required': 'You must agree to the room usage policy before booking.'
+        }
+    )
     
     class Meta:
         model = Booking
@@ -254,7 +286,7 @@ class BookingForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         
         # Only show available rooms
-        self.fields['room'].queryset = Room.objects.filter(is_available=True)
+        self.fields['room'].queryset = Room.objects.filter(is_available=True).exclude(availability_status='unavailable')
         
         # Set default values
         if not self.instance.pk:  # Only for new bookings
@@ -266,10 +298,13 @@ class BookingForm(forms.ModelForm):
         attendees = self.cleaned_data.get('attendees')
         room = self.cleaned_data.get('room')
         
-        if attendees and room and attendees > room.capacity:
-            raise forms.ValidationError(
-                f'Number of attendees ({attendees}) exceeds room capacity ({room.capacity}).'
-            )
+        if attendees and room:
+            min_allowed = getattr(room, 'min_booking_capacity', 1)
+            max_allowed = getattr(room, 'max_booking_capacity', room.capacity)
+            if attendees < min_allowed or attendees > max_allowed:
+                raise forms.ValidationError(
+                    f'Number of attendees must be between {min_allowed} and {max_allowed} for this room.'
+                )
         
         return attendees
 
@@ -301,6 +336,12 @@ class BookingForm(forms.ModelForm):
         
         # Check for conflicts (exclude current booking if editing)
         if room:
+            if room.get_current_status(start_datetime) != 'available':
+                raise forms.ValidationError('This room is not available for the selected time.')
+
+            if room.is_occupied_by_admin_rule(start_datetime, end_datetime):
+                raise forms.ValidationError('This time range is occupied by admin schedule rules for this room.')
+
             conflicts = Booking.objects.filter(
                 room=room,
                 start_time__lt=end_datetime,
@@ -327,6 +368,9 @@ class BookingForm(forms.ModelForm):
         # Store combined datetime for use in views
         cleaned_data['start_datetime'] = start_datetime
         cleaned_data['end_datetime'] = end_datetime
+
+        if not self.instance.pk and not cleaned_data.get('policy_agreement'):
+            raise forms.ValidationError('You must agree to the room usage policy before booking.')
         
         return cleaned_data
 

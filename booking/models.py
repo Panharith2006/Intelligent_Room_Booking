@@ -42,6 +42,18 @@ class Room(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(1000)],
         help_text='Maximum number of people the room can accommodate'
     )
+
+    min_booking_capacity = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(1000)],
+        help_text='Minimum attendees allowed for booking this room'
+    )
+
+    max_booking_capacity = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1), MaxValueValidator(1000)],
+        help_text='Maximum attendees allowed for booking this room'
+    )
     
     room_type = models.CharField(
         max_length=20,
@@ -71,6 +83,11 @@ class Room(models.Model):
         default=True,
         help_text='Whether the room is active and bookable'
     )
+
+    auto_status_updates = models.BooleanField(
+        default=True,
+        help_text='If enabled, status is automatically calculated from active bookings'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -90,17 +107,159 @@ class Room(models.Model):
         """Custom validation for room"""
         if self.capacity and self.capacity < 1:
             raise ValidationError({'capacity': 'Capacity must be at least 1.'})
+
+        if self.max_booking_capacity and self.capacity and self.max_booking_capacity > self.capacity:
+            raise ValidationError({'max_booking_capacity': 'Maximum booking capacity cannot exceed room capacity.'})
+
+        if self.min_booking_capacity and self.max_booking_capacity and self.min_booking_capacity > self.max_booking_capacity:
+            raise ValidationError({'min_booking_capacity': 'Minimum booking capacity cannot be greater than maximum booking capacity.'})
         
         if self.room_number:
             self.room_number = self.room_number.upper().strip()
     
     def save(self, *args, **kwargs):
+        if not self.max_booking_capacity:
+            self.max_booking_capacity = self.capacity or 1
+
+        if not self.min_booking_capacity:
+            self.min_booking_capacity = 1
+
         self.clean()
         super().save(*args, **kwargs)
     
     def is_bookable(self):
         """Check if room is available for booking"""
-        return self.is_available and self.availability_status == 'available'
+        return self.get_current_status() == 'available'
+
+    @staticmethod
+    def _merge_intervals(intervals):
+        if not intervals:
+            return []
+
+        sorted_intervals = sorted(intervals, key=lambda x: x[0])
+        merged = [list(sorted_intervals[0])]
+
+        for start, end in sorted_intervals[1:]:
+            last_start, last_end = merged[-1]
+            if start <= last_end:
+                merged[-1][1] = max(last_end, end)
+            else:
+                merged.append([start, end])
+
+        return [(start, end) for start, end in merged]
+
+    def is_occupied_by_admin_rule(self, start_datetime, end_datetime):
+        """Return True if any fixed/recurring admin occupied rule overlaps the range."""
+        rules = self.occupied_rules.filter(is_active=True)
+        for rule in rules:
+            if rule.overlaps(start_datetime, end_datetime):
+                return True
+        return False
+
+    def get_occupied_intervals(self, target_date, start_hour=7, end_hour=22):
+        """Collect merged occupied intervals from bookings and admin rules for a date."""
+        day_start = timezone.make_aware(datetime.combine(target_date, time(start_hour, 0)))
+        day_end = timezone.make_aware(datetime.combine(target_date, time(end_hour, 0)))
+        occupied_intervals = []
+
+        for rule in self.occupied_rules.filter(is_active=True):
+            rule_interval = rule.get_interval_for_date(target_date)
+            if not rule_interval:
+                continue
+
+            rule_start, rule_end = rule_interval
+            clipped_start = max(rule_start, day_start)
+            clipped_end = min(rule_end, day_end)
+            if clipped_start < clipped_end:
+                occupied_intervals.append((clipped_start, clipped_end))
+
+        if self.auto_status_updates:
+            bookings = self.bookings.filter(
+                status='confirmed',
+                start_time__lt=day_end,
+                end_time__gt=day_start,
+            )
+            for booking in bookings:
+                clipped_start = max(booking.start_time, day_start)
+                clipped_end = min(booking.end_time, day_end)
+                if clipped_start < clipped_end:
+                    occupied_intervals.append((clipped_start, clipped_end))
+
+        if not self.auto_status_updates and self.availability_status == 'occupied':
+            occupied_intervals.append((day_start, day_end))
+
+        return self._merge_intervals(occupied_intervals)
+
+    def get_current_status(self, at_datetime=None):
+        """Return the effective status: available, occupied, or unavailable."""
+        if not self.is_available or self.availability_status == 'unavailable':
+            return 'unavailable'
+
+        if at_datetime is None:
+            at_datetime = timezone.now()
+
+        minute_after = at_datetime + timedelta(minutes=1)
+        if self.is_occupied_by_admin_rule(at_datetime, minute_after):
+            return 'occupied'
+
+        if not self.auto_status_updates:
+            return self.availability_status
+
+        has_active_booking = self.bookings.filter(
+            start_time__lte=at_datetime,
+            end_time__gt=at_datetime,
+            status='confirmed'
+        ).exists()
+
+        return 'occupied' if has_active_booking else 'available'
+
+    def get_status_timeline(self, target_date, start_hour=7, end_hour=22):
+        """Build continuous status timeline for a date."""
+        day_start = timezone.make_aware(datetime.combine(target_date, time(start_hour, 0)))
+        day_end = timezone.make_aware(datetime.combine(target_date, time(end_hour, 0)))
+
+        if not self.is_available or self.availability_status == 'unavailable':
+            return [{
+                'start': day_start,
+                'end': day_end,
+                'start_label': day_start.strftime('%H:%M'),
+                'end_label': day_end.strftime('%H:%M'),
+                'status': 'unavailable',
+            }]
+
+        occupied_intervals = self.get_occupied_intervals(target_date, start_hour=start_hour, end_hour=end_hour)
+        slots = []
+        cursor = day_start
+
+        for occ_start, occ_end in occupied_intervals:
+            if cursor < occ_start:
+                slots.append({
+                    'start': cursor,
+                    'end': occ_start,
+                    'start_label': cursor.strftime('%H:%M'),
+                    'end_label': occ_start.strftime('%H:%M'),
+                    'status': 'available',
+                })
+
+            slots.append({
+                'start': occ_start,
+                'end': occ_end,
+                'start_label': occ_start.strftime('%H:%M'),
+                'end_label': occ_end.strftime('%H:%M'),
+                'status': 'occupied',
+            })
+            cursor = max(cursor, occ_end)
+
+        if cursor < day_end:
+            slots.append({
+                'start': cursor,
+                'end': day_end,
+                'start_label': cursor.strftime('%H:%M'),
+                'end_label': day_end.strftime('%H:%M'),
+                'status': 'available',
+            })
+
+        return slots
     
     def get_absolute_url(self):
         """Get the URL for this room's detail page"""
@@ -110,6 +269,9 @@ class Room(models.Model):
     def is_available_at(self, start_datetime, end_datetime):
         """Check if room is available at given datetime range"""
         if not self.is_bookable():
+            return False
+
+        if self.is_occupied_by_admin_rule(start_datetime, end_datetime):
             return False
         
         conflicts = self.bookings.filter(
@@ -174,6 +336,144 @@ class Room(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.room_number})"
+
+
+class RoomOccupiedTimeRule(models.Model):
+    """Admin-defined fixed or recurring occupied periods for rooms."""
+
+    RULE_TYPE_CHOICES = [
+        ('fixed', 'Fixed Date'),
+        ('recurring_weekly', 'Recurring Weekly'),
+    ]
+
+    room = models.ForeignKey(
+        Room,
+        on_delete=models.CASCADE,
+        related_name='occupied_rules',
+        help_text='Room this occupied period applies to'
+    )
+
+    name = models.CharField(max_length=120, help_text='Rule name for admin reference')
+
+    rule_type = models.CharField(
+        max_length=20,
+        choices=RULE_TYPE_CHOICES,
+        default='fixed',
+        help_text='Whether this is fixed for one date or recurring weekly'
+    )
+
+    fixed_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text='Date for fixed rule'
+    )
+
+    start_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text='Optional start date for recurring rule validity'
+    )
+
+    end_date = models.DateField(
+        blank=True,
+        null=True,
+        help_text='Optional end date for recurring rule validity'
+    )
+
+    weekdays = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text='Comma-separated weekdays for recurring rule: 0=Mon ... 6=Sun'
+    )
+
+    start_time = models.TimeField(help_text='Occupied start time')
+    end_time = models.TimeField(help_text='Occupied end time')
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'room_occupied_time_rules'
+        verbose_name = 'Room Occupied Time Rule'
+        verbose_name_plural = 'Room Occupied Time Rules'
+        ordering = ['room', 'rule_type', 'start_time']
+        indexes = [
+            models.Index(fields=['room', 'is_active']),
+            models.Index(fields=['rule_type', 'fixed_date']),
+        ]
+
+    def get_weekday_set(self):
+        if not self.weekdays:
+            return set()
+
+        weekday_set = set()
+        for value in self.weekdays.split(','):
+            value = value.strip()
+            if value == '':
+                continue
+            weekday_set.add(int(value))
+        return weekday_set
+
+    def clean(self):
+        if self.start_time >= self.end_time:
+            raise ValidationError({'end_time': 'End time must be after start time.'})
+
+        if self.rule_type == 'fixed' and not self.fixed_date:
+            raise ValidationError({'fixed_date': 'Fixed date is required for fixed rules.'})
+
+        if self.rule_type == 'recurring_weekly' and not self.weekdays:
+            raise ValidationError({'weekdays': 'Select at least one weekday for recurring rules.'})
+
+        if self.start_date and self.end_date and self.start_date > self.end_date:
+            raise ValidationError({'end_date': 'End date must be after start date.'})
+
+        if self.rule_type == 'recurring_weekly' and self.weekdays:
+            weekday_set = self.get_weekday_set()
+            if not weekday_set or min(weekday_set) < 0 or max(weekday_set) > 6:
+                raise ValidationError({'weekdays': 'Weekdays must be values from 0 (Mon) to 6 (Sun).'})
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def applies_on_date(self, target_date):
+        if not self.is_active:
+            return False
+
+        if self.rule_type == 'fixed':
+            return self.fixed_date == target_date
+
+        if self.start_date and target_date < self.start_date:
+            return False
+        if self.end_date and target_date > self.end_date:
+            return False
+
+        weekday_set = self.get_weekday_set()
+        return target_date.weekday() in weekday_set
+
+    def get_interval_for_date(self, target_date):
+        if not self.applies_on_date(target_date):
+            return None
+
+        start_dt = timezone.make_aware(datetime.combine(target_date, self.start_time))
+        end_dt = timezone.make_aware(datetime.combine(target_date, self.end_time))
+        return (start_dt, end_dt)
+
+    def overlaps(self, start_datetime, end_datetime):
+        current_date = start_datetime.date()
+        while current_date <= end_datetime.date():
+            interval = self.get_interval_for_date(current_date)
+            if interval:
+                int_start, int_end = interval
+                if int_start < end_datetime and int_end > start_datetime:
+                    return True
+            current_date += timedelta(days=1)
+        return False
+
+    def __str__(self):
+        return f"{self.room.name} - {self.name}"
 
 
 class BookingRule(models.Model):
@@ -370,6 +670,11 @@ class Booking(models.Model):
         blank=True,
         help_text='Additional notes or requirements'
     )
+
+    agreed_to_room_policy = models.BooleanField(
+        default=False,
+        help_text='Whether user agreed to room usage terms for this booking'
+    )
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -421,6 +726,17 @@ class Booking(models.Model):
         """Custom validation for booking"""
         if not self.start_time or not self.end_time:
             return
+
+        if self.pk is None and not self.agreed_to_room_policy:
+            raise ValidationError({'agreed_to_room_policy': 'You must agree to the room usage policy before booking.'})
+
+        if self.room_id and self.attendees:
+            min_allowed = getattr(self.room, 'min_booking_capacity', 1)
+            max_allowed = getattr(self.room, 'max_booking_capacity', self.room.capacity)
+            if self.attendees < min_allowed or self.attendees > max_allowed:
+                raise ValidationError({
+                    'attendees': f'Attendees must be between {min_allowed} and {max_allowed} for this room.'
+                })
         
         # Check if start time is before end time
         if self.start_time >= self.end_time:
@@ -432,6 +748,17 @@ class Booking(models.Model):
         if self.start_time < timezone.now():
             raise ValidationError({
                 'start_time': 'Cannot book rooms in the past.'
+            })
+
+        room_status = self.room.get_current_status(self.start_time)
+        if room_status != 'available':
+            raise ValidationError({
+                'room': f'Room cannot be booked because its status is {room_status}.'
+            })
+
+        if self.room.is_occupied_by_admin_rule(self.start_time, self.end_time):
+            raise ValidationError({
+                'start_time': 'This time overlaps an admin-defined occupied interval for the room.'
             })
         
         # Check booking duration

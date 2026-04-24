@@ -29,7 +29,6 @@ from django.conf import settings
 
 @login_required
 def room_list(request):
-    """Display list of rooms with search and filtering"""
     
     # Get all rooms initially
     rooms = Room.objects.all().order_by('room_number')
@@ -100,7 +99,6 @@ def room_list(request):
 
 @login_required
 def room_detail(request, room_id):
-    """Display detailed view of a room with availability"""
     
     room = get_object_or_404(Room, id=room_id)
     
@@ -195,7 +193,6 @@ def room_toggle_status(request, room_id):
 
 @staff_member_required
 def admin_room_list(request):
-    """Admin view for managing all rooms"""
     rooms = Room.objects.all().order_by('room_number')
     context = {
         'rooms': rooms
@@ -204,8 +201,6 @@ def admin_room_list(request):
 
 @staff_member_required
 def room_delete(request, room_id):
-    """Delete a room (Admin only)"""
-    
     room = get_object_or_404(Room, id=room_id)
     
     # Check if room has any bookings
@@ -229,7 +224,6 @@ def room_delete(request, room_id):
 
 @login_required
 def check_room_availability(request):
-    """AJAX endpoint to check room availability for specific date/time"""
     
     if request.method == 'GET':
         room_id = request.GET.get('room_id')
@@ -289,7 +283,6 @@ def check_room_availability(request):
 
 @login_required
 def user_bookings(request):
-    """User's booking dashboard"""
     bookings = Booking.objects.filter(user=request.user).order_by('-created_at')
     
     # Filter by status
@@ -325,7 +318,6 @@ def user_bookings(request):
 
 @login_required
 def booking_detail(request, booking_id):
-    """Detailed view of a specific booking"""
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     
     # Check if booking can be modified or cancelled
@@ -370,7 +362,6 @@ def cancel_booking(request, booking_id):
 
 @login_required
 def modify_booking(request, booking_id):
-    """Modify an existing booking"""
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     
     if booking.status not in ['pending', 'confirmed']:
@@ -410,7 +401,6 @@ def modify_booking(request, booking_id):
 
 @login_required
 def booking_calendar(request):
-    """Calendar view of user's bookings"""
     bookings = Booking.objects.filter(
         user=request.user,
         status__in=['pending', 'confirmed']
@@ -435,7 +425,6 @@ def booking_calendar(request):
 @require_http_methods(["POST"])
 @login_required
 def check_availability(request):
-    """Real-time availability checking via AJAX"""
     try:
         data = json.loads(request.body)
         room_id = data.get('room_id')
@@ -504,7 +493,6 @@ def check_availability(request):
 @require_http_methods(["POST"])
 @login_required
 def check_conflicts(request):
-    """Check for potential booking conflicts"""
     try:
         data = json.loads(request.body)
         room_id = data.get('room_id')
@@ -549,7 +537,6 @@ def check_conflicts(request):
         })
 
 def get_suggested_times(room, date, preferred_start, preferred_end):
-    """Generate suggested available time slots"""
     duration = datetime.combine(date, preferred_end) - datetime.combine(date, preferred_start)
     duration_minutes = int(duration.total_seconds() / 60)
     
@@ -602,7 +589,6 @@ def get_suggested_times(room, date, preferred_start, preferred_end):
     return suggested_times
 
 def check_booking_rules(user, room, start_datetime, end_datetime):
-    """Check if booking complies with booking rules"""
     try:
         rules = BookingRule.objects.first()
         if not rules:
@@ -666,7 +652,6 @@ def check_booking_rules(user, room, start_datetime, end_datetime):
 
 @login_required
 def user_dashboard(request):
-    """Enhanced user dashboard with booking overview"""
     user = request.user
     
     # Get user's bookings
@@ -757,7 +742,6 @@ def room_list(request):
 
 @login_required
 def room_detail(request, room_id):
-    """Display detailed room information with booking option"""
     room = get_object_or_404(Room, id=room_id)
     
     # Get today's bookings for this room
@@ -797,6 +781,7 @@ def create_booking(request):
         if form.is_valid():
             booking = form.save(commit=False)
             booking.user = request.user
+            booking.agreed_to_room_policy = bool(form.cleaned_data.get('policy_agreement'))
             try:
                 booking.save()
                 # --- Google Calendar Integration ---

@@ -123,6 +123,128 @@
                 </div>
             </div>
 
+            <!-- Occupied Rules & Daily Schedule -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Occupied Time Rules</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="row g-3 mb-4">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="add_occupied_rule">
+                        <div class="col-md-3">
+                            <label class="form-label">Rule Name</label>
+                            <input type="text" class="form-control" name="rule_name" placeholder="e.g. Morning Class" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Rule Type</label>
+                            <select class="form-select" name="rule_type" id="ruleTypeSelect" required>
+                                <option value="fixed">Fixed Date</option>
+                                <option value="recurring_weekly">Recurring Weekly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="fixedDateGroup">
+                            <label class="form-label">Fixed Date</label>
+                            <input type="date" class="form-control" name="fixed_date" id="fixedDateInput">
+                        </div>
+                        <div class="col-md-3 d-none" id="weekdaysGroup">
+                            <label class="form-label d-block">Weekdays</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <label><input type="checkbox" name="weekdays" value="0"> Mon</label>
+                                <label><input type="checkbox" name="weekdays" value="1"> Tue</label>
+                                <label><input type="checkbox" name="weekdays" value="2"> Wed</label>
+                                <label><input type="checkbox" name="weekdays" value="3"> Thu</label>
+                                <label><input type="checkbox" name="weekdays" value="4"> Fri</label>
+                                <label><input type="checkbox" name="weekdays" value="5"> Sat</label>
+                                <label><input type="checkbox" name="weekdays" value="6"> Sun</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-none" id="startDateGroup">
+                            <label class="form-label">Start Date (Optional)</label>
+                            <input type="date" class="form-control" name="start_date">
+                        </div>
+                        <div class="col-md-3 d-none" id="endDateGroup">
+                            <label class="form-label">End Date (Optional)</label>
+                            <input type="date" class="form-control" name="end_date">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" class="form-control" name="start_time" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">End Time</label>
+                            <input type="time" class="form-control" name="end_time" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="ruleActive" checked>
+                                <label class="form-check-label" for="ruleActive">Active</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Rule
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if occupied_rules %}
+                    <div class="table-responsive mb-3">
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Date / Days</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rule in occupied_rules %}
+                                <tr>
+                                    <td>{{ rule.name }}</td>
+                                    <td>{{ rule.get_rule_type_display }}</td>
+                                    <td>
+                                        {% if rule.rule_type == 'fixed' %}
+                                            {{ rule.fixed_date|date:'Y-m-d' }}
+                                        {% else %}
+                                            {{ rule.weekdays }}
+                                            {% if rule.start_date or rule.end_date %}<br><small>{{ rule.start_date|default:'-' }} to {{ rule.end_date|default:'-' }}</small>{% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rule.start_time|time:'H:i' }} - {{ rule.end_time|time:'H:i' }}</td>
+                                    <td>{% if rule.is_active %}<span class="badge bg-success">Active</span>{% else %}<span class="badge bg-secondary">Inactive</span>{% endif %}</td>
+                                    <td>
+                                        <form method="post" class="d-inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_occupied_rule">
+                                            <input type="hidden" name="rule_id" value="{{ rule.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this occupied rule?');">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    <h6 class="mb-2">Today's Continuous Schedule</h6>
+                    <div class="border rounded p-2 bg-light">
+                        {% for slot in today_timeline %}
+                            <div class="d-flex justify-content-between border-bottom py-1">
+                                <span>{{ slot.start_label }} - {{ slot.end_label }}</span>
+                                <span class="badge {% if slot.status == 'available' %}bg-success{% elif slot.status == 'occupied' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ slot.status|title }}</span>
+                            </div>
+                        {% empty %}
+                            <small class="text-muted">No schedule available.</small>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
             <!-- Today's Bookings -->
             {% if today_bookings %}
             <div class="card shadow mb-4">
@@ -240,6 +362,37 @@
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function toggleRuleTypeFields() {
+            const ruleType = document.getElementById('ruleTypeSelect').value;
+            const fixedDateGroup = document.getElementById('fixedDateGroup');
+            const fixedDateInput = document.getElementById('fixedDateInput');
+            const weekdaysGroup = document.getElementById('weekdaysGroup');
+            const startDateGroup = document.getElementById('startDateGroup');
+            const endDateGroup = document.getElementById('endDateGroup');
+
+            if (ruleType === 'fixed') {
+                fixedDateGroup.classList.remove('d-none');
+                fixedDateInput.required = true;
+                weekdaysGroup.classList.add('d-none');
+                startDateGroup.classList.add('d-none');
+                endDateGroup.classList.add('d-none');
+            } else {
+                fixedDateGroup.classList.add('d-none');
+                fixedDateInput.required = false;
+                weekdaysGroup.classList.remove('d-none');
+                startDateGroup.classList.remove('d-none');
+                endDateGroup.classList.remove('d-none');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const ruleTypeSelect = document.getElementById('ruleTypeSelect');
+            if (ruleTypeSelect) {
+                ruleTypeSelect.addEventListener('change', toggleRuleTypeFields);
+                toggleRuleTypeFields();
+            }
+        });
+
         function toggleAvailability(roomId, roomName, isAvailable) {
             const action = isAvailable ? 'disable' : 'enable';
             if (confirm(`Are you sure you want to ${action} "${roomName}"?`)) {

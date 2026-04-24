@@ -1,30 +1,77 @@
 let bookingToCancel = null;
+let cancellationInProgress = false;
 
-function editBooking(bookingId) {
-    // Redirect to edit booking page
-    window.location.href = `/accounts/edit-booking/${bookingId}/`;
+function getCSRFToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.getAttribute('content')) {
+        return meta.getAttribute('content');
+    }
+
+    const formToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (formToken && formToken.value) {
+        return formToken.value;
+    }
+
+    const cookies = document.cookie ? document.cookie.split(';') : [];
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.startsWith('csrftoken=')) {
+            return decodeURIComponent(cookie.substring('csrftoken='.length));
+        }
+    }
+
+    return null;
+}
+
+function openCancelModal() {
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeCancelModal() {
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.removeAttribute('data-booking-id');
+    }
+    bookingToCancel = null;
+}
+
+function submitCancelFallback(bookingId, csrfToken) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/accounts/booking/${bookingId}/cancel/`;
+
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
+    document.body.appendChild(form);
+    form.submit();
 }
 
 function cancelBooking(bookingId) {
-    console.log('Cancel booking clicked for ID:', bookingId);
-    
-    // Get the cancel button to check the booking start time
+    if (!bookingId) {
+        alert('Invalid booking selected for cancellation.');
+        return;
+    }
+
     const cancelButton = document.querySelector(`button[data-booking-id="${bookingId}"]`);
-    
-    if (cancelButton) {
-        const startTimeStr = cancelButton.getAttribute('data-start-time');
-        console.log('Start time string:', startTimeStr);
-        
+    if (!cancelButton) {
+        alert('Unable to start cancellation. Please refresh and try again.');
+        return;
+    }
+
+    const startTimeStr = cancelButton.getAttribute('data-start-time');
+    if (startTimeStr) {
         const startTime = new Date(startTimeStr);
-        const currentTime = new Date();
-        const hoursUntilBooking = (startTime - currentTime) / (1000 * 60 * 60);
-        
-        console.log('Start time:', startTime);
-        console.log('Current time:', currentTime);
-        console.log('Hours until booking:', hoursUntilBooking);
-        
-        // Block only if booking has started or passed.
-        // Late cancellations (<3h) are allowed but penalized server-side.
+        const now = new Date();
+        const hoursUntilBooking = (startTime - now) / (1000 * 60 * 60);
+
         if (hoursUntilBooking <= 0) {
             alert('Cannot cancel booking that has already started.');
             return;
@@ -36,91 +83,83 @@ function cancelBooking(bookingId) {
                 return;
             }
         }
-    } else {
-        console.log('Cancel button not found, proceeding without time check');
     }
-    
+
     bookingToCancel = bookingId;
     const modal = document.getElementById('cancelModal');
     if (modal) {
-        modal.style.display = 'block';
-        console.log('Cancel modal displayed');
-    } else {
-        console.error('Cancel modal not found!');
+        modal.setAttribute('data-booking-id', String(bookingId));
     }
+    openCancelModal();
 }
 
-function closeCancelModal() {
-    document.getElementById('cancelModal').style.display = 'none';
-    bookingToCancel = null;
-}
+async function confirmCancel() {
+    if (cancellationInProgress) {
+        return;
+    }
 
-function confirmCancel() {
-    console.log('Confirming cancel for booking:', bookingToCancel);
-    
-    if (bookingToCancel) {
-        // Send AJAX request to cancel booking
-        fetch(`/accounts/booking/${bookingToCancel}/cancel/`, {
+    const modal = document.getElementById('cancelModal');
+    const modalBookingId = modal ? modal.getAttribute('data-booking-id') : null;
+    const targetBookingId = bookingToCancel || modalBookingId;
+
+    if (!targetBookingId) {
+        alert('No booking selected for cancellation. Please try again.');
+        return;
+    }
+
+    const csrfToken = getCSRFToken();
+    if (!csrfToken) {
+        alert('Security token missing. Please refresh the page and try again.');
+        return;
+    }
+
+    const confirmBtn = document.querySelector('#cancelModal .btn.btn-danger');
+    cancellationInProgress = true;
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Cancelling...';
+    }
+
+    try {
+        const response = await fetch(`/accounts/booking/${targetBookingId}/cancel/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken'),
-                'Content-Type': 'application/json',
-            },
-        })
-        .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('Response data:', data);
-            if (data.success) {
-                // Show success message
-                alert(data.message);
-                // Refresh the page to show updated status
-                location.reload();
-            } else {
-                alert('Error cancelling booking: ' + data.message);
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error cancelling booking. Please try again.');
         });
-    }
-    closeCancelModal();
-}
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+            submitCancelFallback(targetBookingId, csrfToken);
+            return;
         }
-    }
-    return cookieValue;
-}
 
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('cancelModal');
-    if (event.target === modal) {
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to cancel booking.');
+        }
+
+        alert(data.message || 'Booking cancelled successfully.');
+        window.location.reload();
+    } catch (error) {
+        alert(`Error cancelling booking: ${error.message}`);
+    } finally {
+        cancellationInProgress = false;
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Yes, Cancel';
+        }
         closeCancelModal();
     }
 }
 
-// Print booking details
 function printBooking() {
     window.print();
 }
 
-// Add smooth animations
 document.addEventListener('DOMContentLoaded', function() {
-    // Animate info sections
     const sections = document.querySelectorAll('.info-section');
     sections.forEach((section, index) => {
         section.style.opacity = '0';
@@ -132,7 +171,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, index * 100);
     });
 
-    // Add button click animations
     const buttons = document.querySelectorAll('.btn');
     buttons.forEach(button => {
         button.addEventListener('click', function() {
@@ -142,4 +180,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 150);
         });
     });
+
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('cancelModal');
+        if (event.target === modal) {
+            closeCancelModal();
+        }
+    });
+
+    window.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeCancelModal();
+        }
+    });
 });
+
+window.cancelBooking = cancelBooking;
+window.closeCancelModal = closeCancelModal;
+window.confirmCancel = confirmCancel;
+window.printBooking = printBooking;

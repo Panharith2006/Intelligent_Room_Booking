@@ -17,6 +17,57 @@ from .models import Room, Booking, BookingRule
 from accounts.models import User
 
 
+# University booking policy scope (must match web flow enforcement)
+BOOKING_MIN_DURATION_HOURS = 1
+BOOKING_MAX_DURATION_HOURS = 3
+BOOKING_MIN_ADVANCE_HOURS = 1
+BOOKING_MAX_ADVANCE_DAYS = 30
+BOOKING_MAX_ACTIVE_PER_USER = 5
+BOOKING_BUFFER_MINUTES = 5
+CANCELLATION_NOTICE_HOURS = 3
+LATE_CANCELLATIONS_PER_WARNING = 2
+
+
+def check_consecutive_booking_limit(user, room, start_datetime, end_datetime):
+    """Ensure same-user consecutive bookings in the same room stay within max duration."""
+    buffer_delta = timedelta(minutes=BOOKING_BUFFER_MINUTES)
+    day_start = start_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end = start_datetime.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    bookings = list(
+        Booking.objects.filter(
+            user=user,
+            room=room,
+            status='confirmed',
+            start_time__gte=day_start,
+            end_time__lte=day_end,
+        ).order_by('start_time')
+    )
+
+    chain_start = start_datetime
+    chain_end = end_datetime
+
+    changed = True
+    while changed:
+        changed = False
+        for existing in bookings:
+            is_touching_before = abs((existing.end_time - chain_start).total_seconds()) <= buffer_delta.total_seconds()
+            is_touching_after = abs((existing.start_time - chain_end).total_seconds()) <= buffer_delta.total_seconds()
+
+            if is_touching_before or is_touching_after:
+                new_start = min(chain_start, existing.start_time)
+                new_end = max(chain_end, existing.end_time)
+                if new_start != chain_start or new_end != chain_end:
+                    chain_start, chain_end = new_start, new_end
+                    changed = True
+
+    consecutive_hours = (chain_end - chain_start).total_seconds() / 3600
+    if consecutive_hours > BOOKING_MAX_DURATION_HOURS:
+        return False, f'Consecutive bookings in the same room cannot exceed {BOOKING_MAX_DURATION_HOURS} hours total.'
+
+    return True, ''
+
+
 # ============================================
 # Room API Endpoints
 # ============================================
@@ -24,10 +75,6 @@ from accounts.models import User
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_list_rooms(request):
-    """
-    List all available rooms with optional filters
-    GET /api/rooms/?room_type=lab&capacity_min=10&capacity_max=50
-    """
     try:
         # Get filter parameters
         room_type = request.GET.get('room_type', None)
@@ -82,10 +129,6 @@ def api_list_rooms(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_check_availability(request):
-    """
-    Check room availability for a specific date and time range
-    GET /api/rooms/availability/?room_id=1&date=2025-11-20&start_time=09:00&end_time=11:00
-    """
     try:
         # Get parameters
         room_id = request.GET.get('room_id')
@@ -107,6 +150,44 @@ def api_check_availability(request):
         # Create datetime objects
         start_datetime = timezone.make_aware(datetime.combine(date, start_time))
         end_datetime = timezone.make_aware(datetime.combine(date, end_time))
+
+        # Validate against booking time policy
+        now = timezone.now()
+        if start_datetime <= now + timedelta(hours=BOOKING_MIN_ADVANCE_HOURS):
+            return JsonResponse({
+                'success': False,
+                'available': False,
+                'error': f'Booking must be made at least {BOOKING_MIN_ADVANCE_HOURS} hour in advance'
+            }, status=400)
+
+        if start_datetime > now + timedelta(days=BOOKING_MAX_ADVANCE_DAYS):
+            return JsonResponse({
+                'success': False,
+                'available': False,
+                'error': f'Cannot book more than {BOOKING_MAX_ADVANCE_DAYS} days in advance'
+            }, status=400)
+
+        if start_datetime >= end_datetime:
+            return JsonResponse({
+                'success': False,
+                'available': False,
+                'error': 'End time must be after start time'
+            }, status=400)
+
+        duration_hours = (end_datetime - start_datetime).total_seconds() / 3600
+        if duration_hours < BOOKING_MIN_DURATION_HOURS:
+            return JsonResponse({
+                'success': False,
+                'available': False,
+                'error': f'Minimum booking duration is {BOOKING_MIN_DURATION_HOURS} hour'
+            }, status=400)
+
+        if duration_hours > BOOKING_MAX_DURATION_HOURS:
+            return JsonResponse({
+                'success': False,
+                'available': False,
+                'error': f'Maximum booking duration is {BOOKING_MAX_DURATION_HOURS} hours'
+            }, status=400)
         
         # Get room
         room = Room.objects.get(id=room_id)
@@ -168,20 +249,6 @@ def api_check_availability(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_create_booking(request):
-    """
-    Create a new booking via AI chatbot
-    POST /api/bookings/create/
-    Body: {
-        "user_email": "student@example.com",
-        "room_id": 1,
-        "date": "2025-11-20",
-        "start_time": "09:00",
-        "end_time": "11:00",
-        "purpose": "Team meeting",
-        "attendees": 5,
-        "notes": "Optional notes"
-    }
-    """
     try:
         # Parse JSON body
         data = json.loads(request.body)
@@ -246,31 +313,32 @@ def api_create_booking(request):
         
         # Check duration limits
         duration = end_datetime - start_datetime
-        if duration < timedelta(minutes=30):
+        duration_hours = duration.total_seconds() / 3600
+        if duration_hours < BOOKING_MIN_DURATION_HOURS:
             return JsonResponse({
                 'success': False,
-                'error': 'Minimum booking duration is 30 minutes'
+                'error': f'Minimum booking duration is {BOOKING_MIN_DURATION_HOURS} hour'
             }, status=400)
         
-        if duration > timedelta(hours=8):
+        if duration_hours > BOOKING_MAX_DURATION_HOURS:
             return JsonResponse({
                 'success': False,
-                'error': 'Maximum booking duration is 8 hours'
+                'error': f'Maximum booking duration is {BOOKING_MAX_DURATION_HOURS} hours'
             }, status=400)
         
         # Check advance booking limits
         advance_days = (start_datetime - now).days
-        if advance_days > 14:
+        if advance_days > BOOKING_MAX_ADVANCE_DAYS:
             return JsonResponse({
                 'success': False,
-                'error': 'Cannot book more than 14 days in advance'
+                'error': f'Cannot book more than {BOOKING_MAX_ADVANCE_DAYS} days in advance'
             }, status=400)
         
         advance_hours = (start_datetime - now).total_seconds() / 3600
-        if advance_hours < 1:
+        if advance_hours < BOOKING_MIN_ADVANCE_HOURS:
             return JsonResponse({
                 'success': False,
-                'error': 'Must book at least 1 hour in advance'
+                'error': f'Must book at least {BOOKING_MIN_ADVANCE_HOURS} hour in advance'
             }, status=400)
         
         # Check capacity
@@ -279,25 +347,57 @@ def api_create_booking(request):
                 'success': False,
                 'error': f'Number of attendees ({attendees}) exceeds room capacity ({room.capacity})'
             }, status=400)
+
+        # Check room admin availability status
+        if not room.is_available or getattr(room, 'availability_status', 'available') != 'available':
+            return JsonResponse({
+                'success': False,
+                'error': 'Room is currently unavailable based on admin settings'
+            }, status=400)
+
+        # Users cannot hold multiple rooms in the same time slot
+        overlapping_user_bookings = Booking.objects.filter(
+            user=user,
+            status='confirmed',
+            start_time__lt=end_datetime,
+            end_time__gt=start_datetime,
+        )
+        if overlapping_user_bookings.exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'You already have a booking during this time slot. Multiple rooms at the same time are not allowed.'
+            }, status=400)
+
+        # Users can have at most 5 active bookings at any time
+        active_bookings_count = Booking.objects.filter(
+            user=user,
+            status='confirmed',
+            end_time__gt=now,
+        ).count()
+        if active_bookings_count >= BOOKING_MAX_ACTIVE_PER_USER:
+            return JsonResponse({
+                'success': False,
+                'error': (
+                    f'You already have {BOOKING_MAX_ACTIVE_PER_USER} active bookings. '
+                    'Complete or cancel one booking before making a new one.'
+                )
+            }, status=400)
+
+        # Consecutive same-room bookings must remain within max duration
+        can_book_consecutively, consecutive_error = check_consecutive_booking_limit(
+            user, room, start_datetime, end_datetime
+        )
+        if not can_book_consecutively:
+            return JsonResponse({
+                'success': False,
+                'error': consecutive_error
+            }, status=400)
         
         # Check room availability
         if not room.is_available_at(start_datetime, end_datetime):
             return JsonResponse({
                 'success': False,
                 'error': 'Room is not available at the requested time. Please choose a different time slot.'
-            }, status=400)
-        
-        # Check daily booking limit
-        today_bookings = Booking.objects.filter(
-            user=user,
-            start_time__date=date,
-            status='confirmed'
-        ).count()
-        
-        if today_bookings >= 3:
-            return JsonResponse({
-                'success': False,
-                'error': 'You have reached the daily booking limit (3 bookings per day)'
             }, status=400)
         
         # Create booking
@@ -344,10 +444,6 @@ def api_create_booking(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_list_user_bookings(request):
-    """
-    List bookings for a specific user
-    GET /api/bookings/?user_email=student@example.com&status=confirmed
-    """
     try:
         user_email = request.GET.get('user_email')
         status = request.GET.get('status', None)  # confirmed, cancelled, or None for all
@@ -414,14 +510,6 @@ def api_list_user_bookings(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_cancel_booking(request):
-    """
-    Cancel a booking
-    POST /api/bookings/cancel/
-    Body: {
-        "booking_id": 123,
-        "user_email": "student@example.com"
-    }
-    """
     try:
         data = json.loads(request.body)
         booking_id = data.get('booking_id')
@@ -456,13 +544,30 @@ def api_cancel_booking(request):
                 'error': 'This booking cannot be cancelled (either already cancelled or in the past)'
             }, status=400)
         
-        # Check cancellation time limit (2 hours before)
+        # Cancellation policy: cancellation remains possible before start,
+        # but late cancellation (within 3 hours) is recorded as a penalty.
         time_until_booking = booking.start_time - timezone.now()
-        if time_until_booking < timedelta(hours=2):
+        if time_until_booking.total_seconds() <= 0:
             return JsonResponse({
                 'success': False,
-                'error': 'Bookings can only be cancelled at least 2 hours before the start time'
+                'error': 'This booking has already started or passed and cannot be cancelled'
             }, status=400)
+
+        late_cancellation = time_until_booking < timedelta(hours=CANCELLATION_NOTICE_HOURS)
+        warning_issued = False
+        late_cancel_message = ''
+
+        if late_cancellation:
+            booking.user.late_cancellation_count = (booking.user.late_cancellation_count or 0) + 1
+            if booking.user.late_cancellation_count % LATE_CANCELLATIONS_PER_WARNING == 0:
+                booking.user.cancellation_warning_count = (booking.user.cancellation_warning_count or 0) + 1
+                warning_issued = True
+
+            booking.user.save(update_fields=['late_cancellation_count', 'cancellation_warning_count'])
+            late_cancel_message = (
+                f' Late cancellation recorded (less than {CANCELLATION_NOTICE_HOURS} hours notice). '
+                f'Total late cancellations: {booking.user.late_cancellation_count}.'
+            )
         
         # Cancel the booking
         booking.status = 'cancelled'
@@ -470,13 +575,23 @@ def api_cancel_booking(request):
         
         return JsonResponse({
             'success': True,
-            'message': 'Booking cancelled successfully',
+            'message': (
+                'Booking cancelled successfully.'
+                + late_cancel_message
+                + (
+                    f' Warning #{booking.user.cancellation_warning_count} issued '
+                    f'(every {LATE_CANCELLATIONS_PER_WARNING} late cancellations).'
+                    if warning_issued else ''
+                )
+            ),
             'booking': {
                 'id': booking.id,
                 'room_name': booking.room.name,
                 'start_time': booking.start_time.strftime('%Y-%m-%d %H:%M'),
                 'status': booking.status
-            }
+            },
+            'late_cancellation': late_cancellation,
+            'warning_issued': warning_issued
         })
     
     except json.JSONDecodeError:
@@ -498,10 +613,6 @@ def api_cancel_booking(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_get_booking_rules(request):
-    """
-    Get current booking rules
-    GET /api/rules/
-    """
     try:
         rule = BookingRule.objects.filter(is_active=True).first()
         
@@ -509,11 +620,12 @@ def api_get_booking_rules(request):
             return JsonResponse({
                 'success': True,
                 'rules': {
-                    'max_duration_hours': 8,
+                    'min_duration_hours': BOOKING_MIN_DURATION_HOURS,
+                    'max_duration_hours': BOOKING_MAX_DURATION_HOURS,
                     'daily_booking_limit': 3,
-                    'max_advance_days': 14,
-                    'min_advance_hours': 1,
-                    'min_cancel_hours': 2,
+                    'max_advance_days': BOOKING_MAX_ADVANCE_DAYS,
+                    'min_advance_hours': BOOKING_MIN_ADVANCE_HOURS,
+                    'min_cancel_hours': CANCELLATION_NOTICE_HOURS,
                     'booking_start_time': '07:00',
                     'booking_end_time': '20:30'
                 }
@@ -522,12 +634,13 @@ def api_get_booking_rules(request):
         return JsonResponse({
             'success': True,
             'rules': {
+                'min_duration_hours': BOOKING_MIN_DURATION_HOURS,
                 'max_duration_hours': rule.max_duration_hours,
                 'daily_booking_limit': rule.daily_booking_limit,
                 'weekly_booking_limit': rule.weekly_booking_limit,
                 'max_advance_days': rule.max_advance_days,
                 'min_advance_hours': rule.min_advance_hours,
-                'min_cancel_hours': rule.min_cancel_hours,
+                'min_cancel_hours': CANCELLATION_NOTICE_HOURS,
                 'booking_start_time': rule.booking_start_time.strftime('%H:%M'),
                 'booking_end_time': rule.booking_end_time.strftime('%H:%M')
             }
@@ -543,10 +656,6 @@ def api_get_booking_rules(request):
 @csrf_exempt
 @require_http_methods(["GET"])
 def api_search_rooms(request):
-    """
-    Natural language search for rooms
-    GET /api/rooms/search/?query=lab+for+20+people
-    """
     try:
         query = request.GET.get('query', '').lower()
         

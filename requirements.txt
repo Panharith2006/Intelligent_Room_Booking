@@ -21,6 +21,11 @@ python-dotenv>=1.0.0
 # Semantic Kernel (required for AI integration used by `ai/` and `chatbot/` modules)
 semantic-kernel>=0.1.0,<2.0.0
 
+# LangChain (required for document ingestion and RAG)
+langchain>=0.1.0
+langchain-text-splitters>=0.0.1
+langchain-community>=0.0.1
+
 # Async HTTP client used by async plugin functions
 httpx>=0.24.0,<0.25.0
 uvicorn[standard]>=0.24.0,<1.0.0

@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 class RoomBookingPlugin:
     def __init__(self, room_model, booking_model, booking_automation):
-        """Initialize plugin with Django models and automation."""
         self.Room = room_model
         self.Booking = booking_model
         self.booking_automation = booking_automation
@@ -185,7 +184,7 @@ class RoomBookingPlugin:
                 "purpose": purpose,
             }
 
-            # ✅ RULES ENGINE VALIDATION (CRITICAL)
+            #  RULES ENGINE VALIDATION (CRITICAL)
             validation = await sync_to_async(
                 self.booking_automation.validate_booking
             )(criteria)
@@ -193,7 +192,7 @@ class RoomBookingPlugin:
             if not validation.get("valid"):
                 return validation.get("message", "Booking failed validation.")
 
-            # ✅ EXECUTION
+            #  EXECUTION
             result = await sync_to_async(
                 self.booking_automation.auto_book
             )(user, criteria)
