@@ -67,10 +67,6 @@ async def find_best_rooms(booking_automation, criteria: dict, limit: int = 3):
 # Auto booking (async safe)
 # -----------------------------
 async def auto_book(booking_automation, user, criteria: dict):
-	"""
-	Execute automatic booking.
-	Safe wrapper with error handling.
-	"""
 	try:
 		return await sync_to_async(
 			booking_automation.auto_book,

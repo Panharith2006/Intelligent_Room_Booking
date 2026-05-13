@@ -54,8 +54,8 @@ else:
 # Test 4: Ingest policies
 print("\n[Test 4] Ingesting Policies...")
 try:
-    from ai.ingest_policies import ingest_policy_document
-    success = ingest_policy_document()
+    from ai.ingest_documents import ingest_policy
+    success = ingest_policy()
     if success:
         stats = vs.get_collection_stats()
         print(f"✓ Policies ingested successfully")

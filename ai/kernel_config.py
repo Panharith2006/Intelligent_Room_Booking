@@ -31,6 +31,32 @@ class OllamaChatCompletion(ChatCompletionClientBase):
     def ai_model_id(self) -> str:
         return self.model_id
 
+    def __call__(self, prompt: str) -> str:
+        """Synchronous prompt interface used by QueryProcessor and SelfRAG."""
+        payload = {
+            "model": self.model_id,
+            "messages": [
+                {"role": "user", "content": prompt},
+            ],
+            "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 1024,
+            },
+        }
+
+        url = f"{self.base_url.rstrip('/')}/api/chat"
+        response = requests.post(url, json=payload, timeout=120)
+
+        if response.status_code == 404:
+            raise Exception(f"Model not found: {self.model_id}")
+
+        if response.status_code >= 400:
+            raise Exception(f"Ollama error: {response.text}")
+
+        data = response.json()
+        return data.get("message", {}).get("content", "")
+
     async def get_chat_message_contents(
         self,
         chat_history: ChatHistory,
@@ -122,6 +148,7 @@ def create_kernel_ollama(
     )
 
     kernel.add_service(ollama_service)
+    kernel.llm_client = ollama_service
 
     logger.info(f"Ollama Kernel initialized: {model} @ {base_url}")
 

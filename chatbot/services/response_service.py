@@ -17,7 +17,6 @@ def build_chat_response(
 	Build structured response for chatbot API.
 	Safe version with defensive programming.
 	"""
-
 	# -----------------------------
 	# Safety normalization
 	# -----------------------------

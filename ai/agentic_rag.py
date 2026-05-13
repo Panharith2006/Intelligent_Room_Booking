@@ -18,13 +18,21 @@ class AgenticRAG:
         self,
         vector_store: VectorStore = None,
         llm_client=None,
+        eval_llm_client=None,
         enable_self_rag: bool = True,
         enable_reranking: bool = True,
         enable_multi_query: bool = True
     ):
         # Initialize vector store
         self.vector_store = vector_store or VectorStore()
+        
+        # DUAL-MODEL ARCHITECTURE
+        # llm_client: For input evaluation, intent classification, entity extraction, response generation
         self.llm_client = llm_client
+        
+        # eval_llm_client: For output evaluation (faithfulness, relevance, completeness)
+        # Falls back to llm_client if not specified
+        self.eval_llm_client = eval_llm_client or llm_client
         
         # Feature flags
         self.enable_self_rag = enable_self_rag
@@ -33,8 +41,10 @@ class AgenticRAG:
         
         # Initialize components
         logger.info("Initializing Agentic RAG components...")
+        logger.info(f"  Input Model (QueryProcessor): {type(llm_client).__name__ if llm_client else 'None'}")
+        logger.info(f"  Evaluation Model (SelfRAG): {type(self.eval_llm_client).__name__ if self.eval_llm_client else 'None'}")
         
-        # Query processor
+        # Query processor (uses input evaluation model)
         self.query_processor = QueryProcessor(llm_client)
         
         # Hybrid retriever
@@ -57,9 +67,9 @@ class AgenticRAG:
                 logger.warning(f"Re-ranking initialization failed: {e}")
                 self.enable_reranking = False
         
-        # Self-RAG
+        # Self-RAG (uses output evaluation model)
         if self.enable_self_rag:
-            self.self_rag = SelfRAG(self.retriever, llm_client)
+            self.self_rag = SelfRAG(self.retriever, self.eval_llm_client)
             logger.info(" Self-RAG enabled")
         
         logger.info(f" Agentic RAG initialized (Self-RAG: {self.enable_self_rag}, "
@@ -213,7 +223,7 @@ class AgenticRAG:
             }
         }
         
-        logger.info(f"✓ Processing complete in {processing_time:.2f}s")
+        logger.info(f" Processing complete in {processing_time:.2f}s")
         logger.info(f"=" * 80)
         
         return result
@@ -319,14 +329,18 @@ class AgenticRAG:
                 response += f"{i}. Room {metadata.get('room_number', 'N/A')} "
                 response += f"(Capacity: {metadata.get('capacity', 'N/A')})\n"
                 
-                building = metadata.get('building')
-                if building:
-                    response += f"   Location: Building {building}\n"
+                # Room type
+                room_type = metadata.get('room_type')
+                if room_type:
+                    response += f"   Type: {room_type.title()}\n"
                 
-                features = metadata.get('features', {})
-                feature_list = [k.replace('_', ' ').title() for k, v in features.items() if v]
-                if feature_list:
-                    response += f"   Features: {', '.join(feature_list)}\n"
+                # Equipment (from TextField)
+                equipment = metadata.get('equipment', '')
+                if equipment:
+                    equipment_list = equipment.split(',') if ',' in equipment else equipment.split()
+                    equipment_list = [e.strip() for e in equipment_list if e.strip()]
+                    if equipment_list:
+                        response += f"   Equipment: {', '.join(equipment_list)}\n"
                 
                 response += "\n"
             

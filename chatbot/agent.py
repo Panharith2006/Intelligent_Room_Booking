@@ -63,10 +63,11 @@ class ChatAgent:
             from ai.vector_store import get_vector_store
 
             vector_store = get_vector_store()
+            llm_client = getattr(self.kernel, "llm_client", None)
 
             rag = AgenticRAG(
                 vector_store=vector_store,
-                llm_client=None,        # Uses Ollama kernel (not direct LLM client)
+                llm_client=llm_client,   # Gemma-backed callable client from Ollama kernel
                 enable_self_rag=True,
                 enable_reranking=True,
                 enable_multi_query=True,

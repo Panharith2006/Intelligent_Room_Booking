@@ -1,11 +1,6 @@
 """
 AI Gateway (Production-safe dependency injector)
-
-Only responsibility:
-- initialize AI systems once
-- provide access to them safely
 """
-
 import logging
 
 logger = logging.getLogger(__name__)

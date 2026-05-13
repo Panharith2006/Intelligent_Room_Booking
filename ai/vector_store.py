@@ -8,11 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class VectorStore:
-    """
-    Production-ready vector database wrapper for ChromaDB.
-    Handles knowledge base, room search, and booking policies.
-    """
-
     def __init__(self, persist_directory: Optional[str] = None):
 
         self.persist_directory = persist_directory or os.getenv(

@@ -7,10 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 class BookingAutomation:
-    """
-    Booking engine for AI chatbot (room recommendation + auto booking)
-    """
-
     def __init__(self, room_model, booking_model, booking_rule_model=None):
         self.Room = room_model
         self.Booking = booking_model
@@ -73,9 +69,9 @@ class BookingAutomation:
                     "capacity": room.capacity,
                     "name": room.name,
                     "room_number": room.room_number,
-                    "building": getattr(room, "building_name", None) or getattr(room, "building", None),
+                    "room_type": room.room_type,
                     "availability": availability,
-                    "features": self._get_room_features(room)
+                    "equipment": self._get_room_equipment(room)
                 })
 
         available_rooms.sort(key=lambda x: x["score"], reverse=True)
@@ -127,20 +123,13 @@ class BookingAutomation:
             availability["is_available"] = False
             return 0.0, availability
 
-        # building match
-        if criteria.get("building"):
-            room_building = getattr(room, "building_name", None) or getattr(room, "building", None)
-
-            if room_building and room_building.upper() == criteria["building"].upper():
-                score += 20
-
-        # purpose match
+        # room_type match with purpose
         if criteria.get("purpose"):
             type_mapping = {
-                "meeting": "meeting",
-                "lecture": "lecture",
+                "meeting": "conference",
+                "lecture": "classroom",
                 "conference": "conference",
-                "workshop": "workshop",
+                "workshop": "conference",
                 "lab": "lab",
             }
 
@@ -149,13 +138,14 @@ class BookingAutomation:
             if preferred and room.room_type == preferred:
                 score += 15
 
-        # features
-        if getattr(room, "has_projector", False):
-            score += 5
-        if getattr(room, "has_whiteboard", False):
-            score += 3
-        if getattr(room, "has_computer", False):
-            score += 4
+        # equipment match
+        equipment_list = self._parse_equipment(room.equipment) if room.equipment else []
+        
+        if criteria.get("equipment"):
+            required_equipment = criteria["equipment"] if isinstance(criteria["equipment"], list) else [criteria["equipment"]]
+            for req in required_equipment:
+                if any(req.lower() in eq.lower() for eq in equipment_list):
+                    score += 5
 
         return score, availability
 
@@ -209,26 +199,20 @@ class BookingAutomation:
             return False
 
     # =========================================================
-    # FEATURES
+    # EQUIPMENT PARSING
     # =========================================================
-    def _get_room_features(self, room) -> List[str]:
+    def _parse_equipment(self, equipment_text: str) -> List[str]:
+        """Parse equipment from TextField (comma or space separated)"""
+        if not equipment_text:
+            return []
+        
+        # Split by comma or common separators
+        items = [item.strip() for item in equipment_text.replace(',', ' ').split()]
+        return [item for item in items if item]
 
-        features = []
-
-        mapping = [
-            ("has_projector", "Projector"),
-            ("has_whiteboard", "Whiteboard"),
-            ("has_computer", "Computer"),
-            ("has_audio", "Audio System"),
-            ("has_video", "Video Conferencing"),
-            ("has_ac", "Air Conditioning"),
-        ]
-
-        for attr, label in mapping:
-            if getattr(room, attr, False):
-                features.append(label)
-
-        return features
+    def _get_room_equipment(self, room) -> List[str]:
+        """Get room equipment from TextField"""
+        return self._parse_equipment(room.equipment)
 
     # =========================================================
     # AUTO BOOKING

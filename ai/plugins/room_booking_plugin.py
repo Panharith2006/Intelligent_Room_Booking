@@ -82,12 +82,12 @@ class RoomBookingPlugin:
             if hasattr(room, "room_type") and room.room_type:
                 info += f"Type: {room.get_room_type_display()}\n"
 
-            features = await sync_to_async(
-                self.booking_automation._get_room_features
+            equipment = await sync_to_async(
+                self.booking_automation._get_room_equipment
             )(room)
 
-            if features:
-                info += f"Features: {', '.join(features)}\n"
+            if equipment:
+                info += f"Equipment: {', '.join(equipment)}\n"
 
             return info
 
