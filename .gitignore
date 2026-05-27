@@ -49,3 +49,12 @@ coverage.xml
 # OS files
 .DS_Store
 Thumbs.db
+
+# GitHub
+.github/
+
+# Markdown files
+*.md
+
+# Backup files
+*.bak

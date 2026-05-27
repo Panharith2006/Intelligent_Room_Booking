@@ -15,9 +15,7 @@ class UserManager(BaseUserManager):
         return user
 
     def create_superuser(self, email, student_id=None, phone_number=None, password=None, **extra_fields):
-        """Create and return a superuser. Accepts optional `student_id` and `phone_number`
-        so `manage.py createsuperuser` works interactively without requiring extra prompts.
-        """
+        
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_admin', True)

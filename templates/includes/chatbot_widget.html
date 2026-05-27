@@ -2,12 +2,44 @@
 <!-- Chatbot CSS -->
 <link rel="stylesheet" href="{% static 'css/chatbot.css' %}">
 
-<!-- Font Awesome for icons (if not already included) -->
+<!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-<!-- Hidden element to pass user email to JavaScript -->
+<!-- Pass user email to JavaScript -->
 {% if user.is_authenticated %}
 <div data-user-email="{{ user.email }}" style="display: none;"></div>
 {% endif %}
+
+<!-- Chat Widget -->
+<div class="chatbot-container">
+    <button class="chatbot-button" id="chatbot-toggle" title="Chat with us">
+        <i class="fas fa-comments"></i>
+    </button>
+    
+    <div class="chatbot-window" id="chatbot-window">
+        <div class="chatbot-header">
+            <h3>Chat Assistant</h3>
+            <button class="chatbot-close" id="chatbot-close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="chatbot-messages" id="chatbot-messages">
+        </div>
+        
+        <div class="chatbot-input-area">
+            <input 
+                type="text" 
+                class="chatbot-input" 
+                id="chatbot-input" 
+                placeholder="Type a message..."
+                autocomplete="off"
+            />
+            <button class="chatbot-send" id="chatbot-send">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
 
 <script src="{% static 'js/chatbot.js' %}"></script>

@@ -1,8 +1,3 @@
-"""
-Validation helpers for chatbot HTTP payloads and booking logic.
-Production-safe version (clean + strict + predictable).
-"""
-
 from typing import Any, Dict, Optional, Tuple
 import json
 
@@ -10,14 +5,8 @@ import json
 # =========================
 # JSON BODY PARSER
 # =========================
-
 def parse_json_body(request) -> Tuple[bool, Optional[Dict[str, Any]], Optional[str], int]:
-    """
-    Safely parse JSON request body.
-
-    Returns:
-        (success, data, error_message, status_code)
-    """
+   
     try:
         raw = request.body.decode("utf-8") if request.body else "{}"
         data = json.loads(raw)
@@ -37,19 +26,13 @@ def parse_json_body(request) -> Tuple[bool, Optional[Dict[str, Any]], Optional[s
 # =========================
 # REQUIRED STRING FIELD
 # =========================
-
 def require_string_field(
     payload: Dict[str, Any],
     field: str,
     *,
     allow_empty: bool = False,
 ) -> Tuple[bool, Optional[str], Optional[str], int]:
-    """
-    Validate required string field.
-
-    Returns:
-        (success, value, error_message, status_code)
-    """
+    
     value = payload.get(field)
 
     if value is None:
@@ -65,15 +48,11 @@ def require_string_field(
 
     return True, value, None, 200
 
-
 # =========================
 # OPTIONAL STRING FIELD
 # =========================
-
 def optional_string(payload: Dict[str, Any], field: str, default: str = "") -> str:
-    """
-    Safely extract optional string field.
-    """
+    
     value = payload.get(field, default)
 
     if isinstance(value, str):
@@ -85,12 +64,8 @@ def optional_string(payload: Dict[str, Any], field: str, default: str = "") -> s
 # =========================
 # SLOT VALIDATION
 # =========================
-
 def validate_update_slots(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Sanitize update_slots for safe session updates.
-    Only allows primitive safe types.
-    """
+    
     slots = payload.get("update_slots")
 
     if not isinstance(slots, dict):
@@ -117,12 +92,7 @@ def validate_update_slots(payload: Dict[str, Any]) -> Dict[str, Any]:
 # =========================
 # BOOKING VALIDATION
 # =========================
-
 def validate_booking_entities(entities: Dict[str, Any]) -> bool:
-    """
-    Ensure required booking fields exist and are valid.
-    Prevents invalid AI-generated booking requests.
-    """
     if not isinstance(entities, dict):
         return False
 

@@ -110,7 +110,8 @@ def api_list_rooms(request):
                 'description': room.description,
                 'equipment': room.equipment,
                 'is_available': room.is_available,
-                'availability_status': room.availability_status
+                'availability_status': room.availability_status,
+                'image_url': room.image.url if room.image else None
             })
         
         return JsonResponse({

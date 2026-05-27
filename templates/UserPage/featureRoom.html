@@ -109,14 +109,6 @@
                         <option value="51+">51+ people</option>
                     </select>
                 </div>
-                {% comment %} <div class="filter-group">
-                    <label for="date">Date</label>
-                    <input type="date" id="date">
-                </div>
-                <div class="filter-group">
-                    <label for="time">Time</label>
-                    <input type="time" id="time">
-                </div> {% endcomment %}
             </div>
             <div class="button-group">
                 <button class="search-btn" onclick="searchRooms()">
@@ -162,9 +154,6 @@
     </div>
 
 
-    <!-- Booking Schedule Feature (NEW) -->
-    <!-- Removed duplicate calendar button for cleaner look -->
-
     <!-- Campus Map Section -->
     <div class="map-container" id="map-section">
         <div class="map-header">
@@ -185,45 +174,26 @@
     </div>
 
 
-    
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'UserPage/js/featureRoom.js' %}"></script>
     <script>
-        // ✅ Room data from Django backend (real database data)
         const rooms = [
             {% for room in rooms_data %}
             {
                 id: {{ room.id }},
                 name: "{{ room.name|escapejs }}",
-                location: "{{ room.location|default_if_none:''|escapejs }}",
+                location: "{{ room.room_number|escapejs }}",
                 capacity: {{ room.capacity }},
-                type: "{{ room.room_type|default_if_none:''|escapejs }}",
-                equipment: "{{ room.equipment|default_if_none:''|escapejs }}",
-                facilities: "{{ room.facilities|default_if_none:''|escapejs }}",
+                type: "{{ room.room_type|escapejs }}",
+                equipment: "{{ room.equipment|escapejs }}",
+                facilities: "{{ room.equipment|escapejs }}",
                 features: {% if room.equipment %}"{{ room.equipment|escapejs }}".split(', '){% else %}[]{% endif %},
                 available: {{ room.available|yesno:"true,false" }},
-                current_status: "{{ room.current_status|default_if_none:'available'|escapejs }}",
+                current_status: "{{ room.current_status|escapejs }}",
                 description: "{{ room.description|escapejs }}",
-                imageUrl: "{{ room.image_url|escapejs }}",
+                imageUrl: "{{ room.image_url }}",
                 room_number: "{{ room.room_number|escapejs }}"
             }{% if not forloop.last %},{% endif %}
-            {% empty %}
-            // Fallback rooms if no data from database
-            {
-                id: 1,
-                name: "No Rooms Available",
-                location: "Please contact admin",
-                capacity: 0,
-                type: "other",
-                equipment: "",
-                facilities: "",
-                features: [],
-                available: false,
-                description: "No rooms are currently available. Please contact the administrator.",
-                imageUrl: "",
-                room_number: "N/A"
-            }
             {% endfor %}
         ];
 
@@ -277,16 +247,7 @@
                 roomCard.style = 'box-shadow: 0 2px 8px rgba(0,0,0,0.07); border-radius: 12px; background: #fff; overflow: hidden; margin-bottom: 12px;';
                 const status = room.current_status || (room.available ? 'available' : 'unavailable');
                 const statusMeta = getStatusMeta(status);
-                // Extract building name robustly from location
-                let buildingName = room.location;
-                // Try to match 'Building X' or 'Bldg X' or just first word if not present
-                let match = buildingName.match(/(Building|Bldg)\s*[A-Za-z0-9]+/i);
-                if (match) {
-                    buildingName = match[0];
-                } else {
-                    // fallback: take first word or phrase before comma
-                    buildingName = buildingName.split(',')[0].trim();
-                }
+                const buildingName = room.room_number || 'Building';
                 roomCard.innerHTML = `
                     ${room.imageUrl ? 
                         `<div class="room-image" style="background-image: url('${room.imageUrl}'); height: 160px; border-radius: 12px 12px 0 0; position: relative;">
@@ -305,8 +266,7 @@
                             ${room.name}
                             <span style="display: flex; align-items: center; gap: 8px; margin-top: 2px;">
                                 <span class="building-logo" style="display: inline-flex; align-items: center; color: #667eea; font-size: 0.95em; margin-right: 4px;"><i class="bi bi-geo-alt" style="margin-right:4px;"></i></span>
-                                <span class="room-number" style="font-size: 0.95em; color: #888; font-weight: 400;">${room.room_number}</span>
-                                <span class="building-name" style="font-size: 0.95em; color: #667eea; font-weight: 500;">${buildingName}</span>
+                                <span class="room-number" style="font-size: 0.95em; color: #667eea; font-weight: 500;">${room.room_number}</span>
                             </span>
                         </h3>
                         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; align-items: center;">
@@ -339,14 +299,6 @@
                 const statusMeta = getStatusMeta(status);
                 const modal = document.getElementById('quickBookingModal');
                 const roomDetails = document.getElementById('roomDetails');
-                // Extract building name robustly from location
-                let buildingName = room.location;
-                let match = buildingName.match(/(Building|Bldg)\s*[A-Za-z0-9]+/i);
-                if (match) {
-                    buildingName = match[0];
-                } else {
-                    buildingName = buildingName.split(',')[0].trim();
-                }
                 roomDetails.innerHTML = `
                     <div class="room-detail-header" style="text-align: left;">
                         <h4 style="text-align: left;">${room.name}</h4>
@@ -397,53 +349,29 @@
         function redirectToBooking(roomId) {
             const room = rooms.find(r => r.id === roomId);
             if (room) {
-                // Get current date as default if none selected
                 const today = new Date();
-                today.setDate(today.getDate() + 1); // Tomorrow
+                today.setDate(today.getDate() + 1);
                 const tomorrow = today.toISOString().split('T')[0];
                 const date = tomorrow;
-                
-                // Get 9 AM as default time if none selected
                 const time = '09:00';
                 
-                console.log('Selected room:', room);
-                console.log('Date:', date, 'Time:', time);
-                
-                // Extract building and room from location
                 const locationParts = room.location.split(', ');
-                let building = '';
-                let roomNumber = '';
+                const building = locationParts[0] || room.location;
+                const roomNumber = locationParts[1] || room.name;
                 
-                if (locationParts.length >= 2) {
-                    building = locationParts[0]; // e.g., "Building A"
-                    roomNumber = locationParts[1]; // e.g., "Room 206"
-                } else {
-                    // Fallback if format is different
-                    building = room.location;
-                    roomNumber = room.name;
-                }
-                
-                console.log('Building:', building, 'Room:', roomNumber);
-                
-                // Build URL with parameters
                 const params = new URLSearchParams({
                     building: building,
-                    room: room.name, // Use the exact room name for better matching
-                    room_number: roomNumber, // Also pass the room number
+                    room: room.name,
+                    room_number: roomNumber,
                     date: date,
                     time: time,
                     room_id: roomId,
                     room_name: room.name,
                     room_capacity: room.capacity,
-                    from_dashboard: 'true' // Flag to indicate source
+                    from_dashboard: 'true'
                 });
                 
-                const url = `{% url 'accounts:booking' %}?${params.toString()}`;
-                console.log('Redirecting to:', url);
-                window.location.href = url;
-            } else {
-                console.error('Room not found:', roomId);
-                alert('Room not found. Please try again.');
+                window.location.href = `{% url 'accounts:booking' %}?${params.toString()}`;
             }
         }
 
@@ -456,24 +384,35 @@
         function searchRooms() {
             const roomType = document.getElementById('room-type').value;
             const capacity = document.getElementById('capacity').value;
-            const date = document.getElementById('date').value;
-            const time = document.getElementById('time').value;
 
-            let filteredRooms = rooms.filter(room => {
-                if (roomType && room.type !== roomType) return false;
-                if (capacity) {
-                    const [min, max] = capacity.includes('+') ? [51, Infinity] : capacity.split('-').map(Number);
-                    if (room.capacity < min || (max && room.capacity > max)) return false;
-                }
-                return true;
-            });
+            let filteredRooms = rooms;
+
+            // Filter by room type
+            if (roomType) {
+                filteredRooms = filteredRooms.filter(room => {
+                    return room.type && room.type.toLowerCase() === roomType.toLowerCase();
+                });
+            }
+
+            // Filter by capacity
+            if (capacity) {
+                filteredRooms = filteredRooms.filter(room => {
+                    if (capacity === '1-10') return room.capacity >= 1 && room.capacity <= 10;
+                    if (capacity === '11-25') return room.capacity >= 11 && room.capacity <= 25;
+                    if (capacity === '26-50') return room.capacity >= 26 && room.capacity <= 50;
+                    if (capacity === '51+') return room.capacity >= 51;
+                    return true;
+                });
+            }
 
             currentRooms = filteredRooms;
             displayRooms(filteredRooms);
             
             // Show search results message
             if (filteredRooms.length > 0) {
-                showToast(`Found ${filteredRooms.length} room(s) matching your criteria`, 'success');
+                showToast(`Found ${filteredRooms.length} room(s)`, 'success');
+            } else {
+                showToast('No rooms found matching your criteria', 'info');
             }
         }
 
@@ -530,37 +469,8 @@
         // Initialize the page
         document.addEventListener('DOMContentLoaded', function() {
             displayRooms(currentRooms);
-            
-            // Set current date as default
-            const today = new Date().toISOString().split('T')[0];
-            const dateInput = document.getElementById('date');
-            if (dateInput) {
-                dateInput.value = today;
-                dateInput.min = today;
-            }
-        });
-
-
-        // Booking Schedule (By Room) button logic
-        document.addEventListener('DOMContentLoaded', function() {
-            const byRoomBtn = document.getElementById('byRoomBtn');
-            if (byRoomBtn) {
-                byRoomBtn.onclick = function() {
-                    // Get selected room from filter or default to first
-                    let selectedRoomId = rooms.length > 0 ? rooms[0].id : null;
-                    if (currentRooms.length > 0) {
-                        selectedRoomId = currentRooms[0].id;
-                    }
-                    if (selectedRoomId) {
-                        window.location.href = `{% url 'accounts:room_schedule' %}?room_id=${selectedRoomId}`;
-                    } else {
-                        alert('No room selected.');
-                    }
-                };
-            }
         });
     </script>
-    
     {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

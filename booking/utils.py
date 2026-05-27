@@ -8,7 +8,6 @@ class BookingRuleEnforcer:
         self.rules = BookingRule.objects.first()
     
     def validate_booking_duration(self, start_time, end_time):
-        """Validate booking duration against rules"""
         if not self.rules:
             return True, ""
         
@@ -21,7 +20,6 @@ class BookingRuleEnforcer:
         return True, ""
     
     def validate_advance_booking(self, booking_datetime):
-        """Validate advance booking rules"""
         if not self.rules:
             return True, ""
         
@@ -32,7 +30,6 @@ class BookingRuleEnforcer:
         return True, ""
     
     def validate_user_limits(self, user, booking_datetime):
-        """Validate user booking limits"""
         if not self.rules:
             return True, ""
         
@@ -43,7 +40,6 @@ class BookingRuleEnforcer:
         return True, ""
     
     def can_modify_booking(self, booking):
-        """Check if booking can be modified"""
         if not self.rules or not self.rules.min_modify_hours:
             return True, ""
         

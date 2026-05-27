@@ -455,12 +455,12 @@
                             </div>
                             <div class="col-12">
                                 <div class="mb-3">
-                                    <label for="room_image" class="form-label">Room Image</label>
-                                    <input type="file" class="form-control" id="room_image" name="room_image" accept="image/*" onchange="previewModalImage(this, 'addImagePreview')">
+                                    <label for="image" class="form-label">Room Image</label>
+                                    <input type="file" class="form-control" id="image" name="image" accept="image/*" onchange="previewModalImage(this, 'addImagePreview')">
                                     <div class="form-text">Upload a clear image of the room (JPEG, PNG, GIF formats)</div>
                                     <div class="mt-2" id="addImagePreview" style="display: none;">
                                         <img id="addPreviewImg" src="#" alt="Room Image Preview" style="max-width: 100%; max-height: 150px; border-radius: 8px;">
-                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="removeModalImagePreview('room_image', 'addImagePreview')">
+                                        <button type="button" class="btn btn-sm btn-outline-danger mt-2" onclick="removeModalImagePreview('image', 'addImagePreview')">
                                             <i class="fas fa-times"></i> Remove
                                         </button>
                                     </div>

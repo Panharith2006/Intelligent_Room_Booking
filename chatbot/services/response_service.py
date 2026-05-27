@@ -1,7 +1,3 @@
-"""
-Response payload helpers to keep controller code clean and safe.
-"""
-
 def build_chat_response(
 	response_text: str,
 	response_html,
@@ -13,11 +9,7 @@ def build_chat_response(
 	rag_result: dict,
 	retrieved_docs: list,
 ) -> dict:
-	"""
-	Build structured response for chatbot API.
-	Safe version with defensive programming.
-	"""
-
+	
 	# -----------------------------
 	# Safety normalization
 	# -----------------------------

@@ -129,7 +129,7 @@ def room_create(request):
     """Create a new room (Admin only)"""
     
     if request.method == 'POST':
-        form = RoomForm(request.POST)
+        form = RoomForm(request.POST, request.FILES)
         if form.is_valid():
             room = form.save()
             messages.success(request, f'Room "{room.name}" has been created successfully.')
@@ -152,7 +152,7 @@ def room_edit(request, room_id):
     room = get_object_or_404(Room, id=room_id)
     
     if request.method == 'POST':
-        form = RoomForm(request.POST, instance=room)
+        form = RoomForm(request.POST, request.FILES, instance=room)
         if form.is_valid():
             room = form.save()
             messages.success(request, f'Room "{room.name}" has been updated successfully.')
@@ -888,7 +888,6 @@ def user_bookings(request):
 
 @login_required
 def booking_detail(request, booking_id):
-    """Display booking details"""
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     
     context = {
@@ -899,7 +898,6 @@ def booking_detail(request, booking_id):
 
 @login_required
 def cancel_booking(request, booking_id):
-    """Cancel a booking"""
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     
     if not booking.can_cancel():
@@ -920,7 +918,6 @@ def cancel_booking(request, booking_id):
 
 @login_required
 def check_room_availability(request):
-    """AJAX endpoint to check room availability"""
     room_id = request.GET.get('room_id')
     date = request.GET.get('date')
     start_time = request.GET.get('start_time')
@@ -956,7 +953,6 @@ def check_room_availability(request):
 
 @login_required
 def quick_book(request, room_id):
-    """Quick booking for a specific room"""
     room = get_object_or_404(Room, id=room_id)
     
     if not room.is_bookable():
@@ -990,7 +986,6 @@ def quick_book(request, room_id):
 
 @login_required
 def booking_calendar(request):
-    """Display booking calendar view"""
     # Get all confirmed bookings
     bookings = Booking.objects.filter(
         status='confirmed',
@@ -1019,7 +1014,6 @@ def booking_calendar(request):
 # Additional API functions
 @login_required
 def rooms_api_availability(request):
-    """API endpoint to get room availability information"""
     rooms = Room.objects.filter(is_available=True)
     
     # Get date parameter
@@ -1089,7 +1083,6 @@ def check_availability(request):
 
 @login_required
 def modify_booking(request, booking_id):
-    """Modify an existing booking"""
     booking = get_object_or_404(Booking, id=booking_id, user=request.user)
     
     if not booking.can_be_modified():
@@ -1121,7 +1114,6 @@ from django.contrib.auth.decorators import login_required
 
 @login_required
 def booking_schedule_by_day(request):
-    """Show all of the current user's room bookings for a specific day"""
     user = request.user
     date_str = request.GET.get('date')
     if date_str:
@@ -1142,7 +1134,6 @@ def booking_schedule_by_day(request):
 
 @login_required
 def booking_schedule_by_room(request, room_id):
-    """Show the current user's bookings for a single room by day"""
     user = request.user
     room = get_object_or_404(Room, id=room_id)
     date_str = request.GET.get('date')
@@ -1165,7 +1156,6 @@ def booking_schedule_by_room(request, room_id):
 @login_required
 @require_http_methods(["POST"])
 def check_room_availability_ajax(request):
-    """AJAX endpoint to check room availability and prevent conflicts"""
     try:
         room_id = request.POST.get('room_id')
         date_str = request.POST.get('date')

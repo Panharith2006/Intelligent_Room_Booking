@@ -1,5 +1,6 @@
 from pathlib import Path
 from decouple import config
+import os
 
 # Optional PyMySQL shim: only install if the package is available.
 try:
@@ -10,6 +11,10 @@ except Exception:
     warnings.warn('pymysql not installed; MySQLdb shim not applied. Install pymysql if using MySQL.', UserWarning)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# ✅ Explicitly load .env file using python-dotenv (MUST be after BASE_DIR is defined)
+from dotenv import load_dotenv
+load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)

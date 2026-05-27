@@ -1,10 +1,3 @@
-"""
-ai/apps.py
-
-Django AppConfig for the AI/RAG system.
-Allows management commands and signal handlers to work properly.
-"""
-
 from django.apps import AppConfig
 
 

@@ -178,3 +178,131 @@ python manage.py test
 ✅ Multiple environment settings files for different deployment targets  
 
 **Need help?** Check [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup and troubleshooting guides.
+
+
+# Methodology
+					graph LR
+    START["👤 User Query"] --> INPUT["📥 Input Reception<br/>Chat Controller"]
+    
+    INPUT --> L1["🧠 Layer 1: Query Understanding<br/>─────────────────<br/>• Normalize text<br/>• Classify intent<br/>• Extract entities<br/>• Calculate complexity score 1-5"]
+    
+    L1 --> DECISION{"Complexity<br/>Score ≥ 3?"}
+    
+    DECISION -->|YES| L2B["📚 Layer 2B: Multi-Query Expansion<br/>─────────────────<br/>• Generate 3 query variations<br/>• Retrieve K×2 candidates"]
+    DECISION -->|NO| L2A["📚 Layer 2: Standard Retrieval<br/>─────────────────<br/>• Vector search<br/>• Keyword matching<br/>• Retrieve top-K results"]
+    
+    L2B --> MERGE["🔄 Merge Results"]
+    L2A --> MERGE
+    
+    MERGE --> L3["⚖️ Layer 3: Reranking<br/>─────────────────<br/>• Cross-Encoder scoring<br/>• Semantic relevance<br/>• Filter to top-K"]
+    
+    L3 --> L4["✂️ Layer 4: Context Compression<br/>─────────────────<br/>• Deduplication<br/>• Sentence extraction<br/>• Truncation"]
+    
+    L4 --> SELFRAG{"Self-RAG<br/>Enabled?"}
+    
+    SELFRAG -->|YES| L5["🔍 Layer 5: Self-Reflection<br/>─────────────────<br/>• Evaluate relevance<br/>• Check fact support<br/>• Assess utility<br/>• Verify completeness"]
+    SELFRAG -->|NO| DIRECT["💬 Direct Generation<br/>─────────────────<br/>• Intent-aware response<br/>• Template matching<br/>• Direct synthesis"]
+    
+    L5 --> VALIDATE{"All Metrics<br/>Pass?"}
+    VALIDATE -->|NO| RETRIEVE["🔁 Iterate: Retrieve more<br/>and re-evaluate"]
+    RETRIEVE --> L3
+    VALIDATE -->|YES| L6["📝 Layer 6: Response Synthesis<br/>─────────────────<br/>• Generate final answer<br/>• Attach sources<br/>• Include confidence scores"]
+    
+    DIRECT --> L6
+    
+    L6 --> OUTPUT["✅ Output Response<br/>─────────────────<br/>• Main response text<br/>• Retrieved documents<br/>• Reflection scores<br/>• Metadata"]
+    
+    OUTPUT --> ACTION{"Intent<br/>Type?"}
+    ACTION -->|BOOKING| BOOKING["📅 Execute Booking<br/>─────────────────<br/>• Validate availability<br/>• Create reservation<br/>• Send confirmations"]
+    ACTION -->|QUERY| RETURN["📤 Return to User"]
+    
+    BOOKING --> RETURN
+    RETURN --> END["✨ Chat Complete"]
+    
+    style L1 fill:#4ecdc4
+    style L2A fill:#45b7d1
+    style L2B fill:#45b7d1
+    style L3 fill:#96ceb4
+    style L4 fill:#ffeaa7
+    style L5 fill:#ff7675
+    style L6 fill:#74b9ff
+    style BOOKING fill:#ffd93d
+    style OUTPUT fill:#a8e6cf
+				
+
+# System Architecture
+					graph TB
+    subgraph "Presentation Layer"
+        WEB["Django Web Interface"]
+        API["REST API Endpoints"]
+        TELEGRAM["Telegram Integration"]
+    end
+    
+    subgraph "Orchestration Layer"
+        CONTROLLER["Chat Controller"]
+        GATEWAY["AI Gateway"]
+        AGENT["Chat Agent"]
+    end
+    
+    subgraph "Agentic RAG Engine - 6 Layer Stack"
+        L1["Layer 1: Query Processor<br/>Input Evaluation & Classification"]
+        L2["Layer 2: Hybrid Retriever<br/>Vector + Keyword Retrieval"]
+        L3["Layer 2B: Multi-Query Retriever<br/>Query Expansion for Complex Queries"]
+        L4["Layer 3: Reranker<br/>Cross-Encoder Semantic Matching"]
+        L5["Layer 4: Context Compression<br/>Deduplication & Truncation"]
+        L6["Layer 5: Self-RAG<br/>Output Evaluation & Reflection"]
+        L7["Layer 6: Response Synthesis<br/>Final Output Generation"]
+    end
+    
+    subgraph "Business Logic"
+        BOOKING["Booking Automation"]
+        PLUGIN["Room Plugin"]
+        VALIDATOR["Intent Validators"]
+    end
+    
+    subgraph "Data & Storage Layer"
+        VECTOR["Vector Store<br/>Chroma DB"]
+        DATABASE["Django ORM<br/>SQL Database"]
+        DOCS["Document Repository<br/>FAQ, Policies"]
+        CACHE["Cache Layer"]
+    end
+    
+    subgraph "External Services"
+        CALENDAR["Google Calendar"]
+        EMAIL["Email Service"]
+        LLM["LLM Client<br/>Ollama/HuggingFace"]
+    end
+    
+    WEB --> CONTROLLER
+    API --> CONTROLLER
+    TELEGRAM --> CONTROLLER
+    CONTROLLER --> GATEWAY
+    GATEWAY --> AGENT
+    AGENT --> L1
+    L1 --> L2
+    L1 --> L3
+    L2 --> L4
+    L3 --> L4
+    L4 --> L5
+    L5 --> L6
+    L6 --> L7
+    L7 --> BOOKING
+    BOOKING --> PLUGIN
+    BOOKING --> VALIDATOR
+    L2 --> VECTOR
+    L2 --> DOCS
+    BOOKING --> DATABASE
+    BOOKING --> CALENDAR
+    BOOKING --> EMAIL
+    L1 --> LLM
+    L6 --> LLM
+    L5 --> CACHE
+    
+    style GATEWAY fill:#ff6b6b
+    style AGENT fill:#ff6b6b
+    style L1 fill:#4ecdc4
+    style L6 fill:#45b7d1
+    style BOOKING fill:#ffd93d
+    style VECTOR fill:#95e1d3
+				
+
