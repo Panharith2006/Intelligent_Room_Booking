@@ -436,11 +436,7 @@
         if (autofillData.roomId || autofillData.date || autofillData.time) {
             document.addEventListener('DOMContentLoaded', function() {
                 showAutofillNotification();
-                
-                // Handle autofill after page loads
-                setTimeout(() => {
-                    handleAutofill();
-                }, 500);
+                handleAutofill();
             });
         }
         
@@ -458,8 +454,6 @@
             const container = document.querySelector('.container');
             if (container) {
                 container.insertBefore(notification, container.firstChild);
-                
-                // Auto-hide after 7 seconds
                 setTimeout(() => {
                     if (notification.parentElement) {
                         notification.remove();
@@ -486,88 +480,30 @@
                     timeInput.dispatchEvent(new Event('change'));
                     
                     // Auto-calculate end time (add 2 hours)
-                    if (autofillData.time) {
-                        const endTimeInput = document.getElementById('endTime');
-                        if (endTimeInput) {
-                            const [hours, minutes] = autofillData.time.split(':');
-                            const endHour = (parseInt(hours) + 2) % 24;
-                            const endTime = `${endHour.toString().padStart(2, '0')}:${minutes}`;
-                            endTimeInput.value = endTime;
-                        }
+                    const endTimeInput = document.getElementById('endTime');
+                    if (endTimeInput) {
+                        const [hours, minutes] = autofillData.time.split(':');
+                        const endHour = (parseInt(hours) + 2) % 24;
+                        const endTime = `${endHour.toString().padStart(2, '0')}:${minutes}`;
+                        endTimeInput.value = endTime;
                     }
                 }
             }
             
-            // Autofill room based on URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // Auto-fill building first
-            if (urlParams.has('building')) {
-                const building = urlParams.get('building');
-                const buildingSelect = document.getElementById('buildingSelect');
-                console.log('Auto-filling building:', building);
-                
-                // Find building by name
-                for (let option of buildingSelect.options) {
-                    if (option.text.includes(building) || option.value === building) {
-                        buildingSelect.value = option.value;
-                        buildingSelect.dispatchEvent(new Event('change'));
-                        console.log('Building selected:', option.value, option.text);
-                        break;
-                    }
-                }
-                
-                // Wait for rooms to load, then select room
-                setTimeout(() => {
-                    if (urlParams.has('room') || urlParams.has('room_name')) {
-                        const room = urlParams.get('room') || urlParams.get('room_name');
-                        const roomNumber = urlParams.get('room_number');
-                        const roomSelect = document.getElementById('roomSelect');
-                        console.log('Auto-filling room:', room, 'room_number:', roomNumber);
-                        
-                        // Find room by multiple criteria
-                        for (let option of roomSelect.options) {
-                            const optionText = option.text.toLowerCase();
-                            const roomLower = room.toLowerCase();
-                            
-                            // Try multiple matching strategies
-                            if (option.value === urlParams.get('room_id') || // Exact ID match
-                                optionText.includes(roomLower) || // Name contains room
-                                (roomNumber && optionText.includes(roomNumber.toLowerCase())) || // Room number match
-                                optionText.startsWith(roomLower) || // Starts with room name
-                                room === option.text) { // Exact text match
-                                
-                                roomSelect.value = option.value;
-                                roomSelect.dispatchEvent(new Event('change'));
-                                console.log('Room selected:', option.value, option.text);
-                                break;
-                            }
-                        }
-                    }
-                }, 1500); // Wait for rooms to be populated
-            }
-            
-            // Alternative: try direct room ID matching if available
+            // Autofill room based on ID
             if (autofillData.roomId) {
-                console.log('Trying to auto-fill room ID:', autofillData.roomId);
-                
-                // Wait a bit for all options to load
-                setTimeout(() => {
-                    const roomSelect = document.getElementById('roomSelect');
-                    if (roomSelect) {
-                        for (let option of roomSelect.options) {
-                            if (option.value === autofillData.roomId) {
-                                roomSelect.value = autofillData.roomId;
-                                roomSelect.dispatchEvent(new Event('change'));
-                                console.log('Room selected by ID:', option.value, option.text);
-                                break;
-                            }
+                const roomSelect = document.getElementById('roomSelect');
+                if (roomSelect) {
+                    for (let option of roomSelect.options) {
+                        if (option.value === autofillData.roomId) {
+                            roomSelect.value = autofillData.roomId;
+                            roomSelect.dispatchEvent(new Event('change'));
+                            break;
                         }
                     }
-                }, 2000);
+                }
             }
         }
-        // Science Building option is now available in the building dropdown above.
     </script>
 </body>
 </html>

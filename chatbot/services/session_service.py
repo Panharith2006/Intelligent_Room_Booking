@@ -1,13 +1,7 @@
-"""
-Cache-backed session helpers for chatbot flows.
-Production-safe version with logging + validation.
-"""
-
 import logging
 from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
-
 
 # -----------------------------
 # Session context

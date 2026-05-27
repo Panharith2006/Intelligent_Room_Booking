@@ -10,15 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class LangChainDocumentLoader:
-    """
-    Document ingestion pipeline for RAG system.
-    Loads files → extracts text → chunks → adds metadata
-    """
-
     def __init__(
         self,
-        chunk_size: int = 1000,
-        chunk_overlap: int = 200,
+        chunk_size: int = 1200,
+        chunk_overlap: int = 300,
         splitter_type: str = "recursive"
     ):
         self.chunk_size = chunk_size
@@ -36,10 +31,6 @@ class LangChainDocumentLoader:
     # SPLITTER INIT
     # =========================
     def _init_splitter(self):
-        """
-        Safe LangChain import with fallback handling.
-        Supports both old (langchain<0.1) and new (langchain>=0.1) versions.
-        """
         try:
             # Try new import path (langchain >= 0.1.0)
             try:
@@ -61,7 +52,6 @@ class LangChainDocumentLoader:
                     ""
                 ]
             )
-
         except ImportError as e:
             logger.error(f"LangChain imports failed: {e}")
             logger.error("Run: pip install langchain langchain-text-splitters")

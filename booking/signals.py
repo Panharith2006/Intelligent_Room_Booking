@@ -17,10 +17,6 @@ logger = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Booking)
 def handle_booking_save(sender, instance, created, **kwargs):
-    """
-    Handle booking creation and updates
-    Automatically create/update Google Calendar events
-    """
     try:
         if created:
             # New booking created - create calendar event
@@ -61,10 +57,6 @@ def handle_booking_save(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=Booking)
 def handle_booking_delete(sender, instance, **kwargs):
-    """
-    Handle booking deletion
-    Delete associated Google Calendar events
-    """
     try:
         logger.info(f"Booking deleted: {instance.id}")
         
@@ -81,10 +73,6 @@ def handle_booking_delete(sender, instance, **kwargs):
 # Signal to track booking changes for calendar updates
 @receiver(pre_save, sender=Booking)
 def track_booking_changes(sender, instance, **kwargs):
-    """
-    Track changes to booking for calendar sync
-    Store the previous state to determine what changed
-    """
     if instance.pk:
         try:
             instance._previous_state = Booking.objects.get(pk=instance.pk)

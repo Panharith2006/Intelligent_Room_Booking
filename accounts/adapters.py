@@ -9,23 +9,13 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
-    """
-    Custom adapter for handling Google OAuth sign-ups and logins
-    Open for ALL Google accounts - no email domain restrictions
-    """
-    
+   
     def is_open_for_signup(self, request, sociallogin):
-        """
-        Allow signup for ANY Google account - no domain restrictions
-        """
+        
         return True  # Always allow Google account registration
     
     def pre_social_login(self, request, sociallogin):
-        """
-        Called after a user successfully authenticates via a social provider,
-        but before the login is processed.
-        Open for all Google email domains.
-        """
+        
         user = sociallogin.user
         
         if sociallogin.is_existing:
@@ -46,10 +36,7 @@ class CustomSocialAccountAdapter(DefaultSocialAccountAdapter):
                 pass
     
     def save_user(self, request, sociallogin, form=None):
-        """
-        Saves a newly signed up social login user.
-        Enhanced to allow better profile editing later.
-        """
+       
         user = sociallogin.user
         
         # Get user data from Google

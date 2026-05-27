@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.conf import settings
 # Django core imports
@@ -49,7 +48,6 @@ BOOKING_BUFFER_MINUTES = 5
 
 
 def get_missing_profile_fields(user):
-    """Return a list of required lecturer profile fields that are missing."""
     missing_fields = []
 
     if not user.student_id or str(user.student_id).startswith(('USR', 'GOOGLE')):
@@ -445,7 +443,9 @@ def user_dashboard_view(request):
     from booking.models import Room, Announcement
     from django.utils import timezone
     
+    # Simply fetch rooms like booking_view does
     rooms = Room.objects.all().order_by('room_number')
+    
     # Convert rooms to format expected by frontend
     rooms_data = []
     for room in rooms:
@@ -1153,7 +1153,7 @@ def manage_rooms_view(request):
                 max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
-                room_image = request.FILES.get('room_image')
+                room_image = request.FILES.get('image')
                 availability_status = request.POST.get('availability_status', 'available')
                 is_available = request.POST.get('is_available', 'on') == 'on'
                 auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
@@ -1342,7 +1342,7 @@ def admin_room_management_view(request):
                 max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
                 description = request.POST.get('description', '')
                 equipment = request.POST.get('equipment', '')
-                room_image = request.FILES.get('room_image')
+                room_image = request.FILES.get('image')
                 availability_status = request.POST.get('availability_status', 'available')
                 is_available = request.POST.get('is_available', 'on') == 'on'
                 auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'
@@ -2158,7 +2158,7 @@ def admin_edit_room_view(request, room_id):
             max_booking_capacity = request.POST.get('max_booking_capacity') or capacity
             description = request.POST.get('description', '').strip()
             equipment = request.POST.get('equipment', '').strip()
-            room_image = request.FILES.get('room_image')  
+            room_image = request.FILES.get('image')
             is_available = request.POST.get('is_available', 'on') == 'on'
             availability_status = request.POST.get('availability_status', 'available')
             auto_status_updates = request.POST.get('auto_status_updates', 'on') == 'on'

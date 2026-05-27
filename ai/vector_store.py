@@ -38,8 +38,7 @@ class VectorStore:
 
     # =========================
     # COLLECTION HANDLING
-    # =========================
-
+    # ========================
     def _get_or_create_collection(self, name: str):
         return self.client.get_or_create_collection(
             name=name,
@@ -49,7 +48,6 @@ class VectorStore:
     # =========================
     # DOCUMENT INSERTION
     # =========================
-
     def add_documents(
         self,
         collection_name: str,
@@ -75,7 +73,6 @@ class VectorStore:
     # =========================
     # CORE SEARCH
     # =========================
-
     def search(
         self,
         collection_name: str,
@@ -96,7 +93,6 @@ class VectorStore:
     # =========================
     # HIGH-LEVEL SEARCH HELPERS
     # =========================
-
     def search_rooms(self, query: str, n_results: int = 10) -> Dict:
         return self.search("rooms_info", query, n_results)
 
@@ -106,10 +102,33 @@ class VectorStore:
     def search_policies(self, query: str, n_results: int = 3) -> Dict:
         return self.search("booking_policies", query, n_results)
 
+    def get_all_documents(self, collection_name: str) -> List[Dict]:
+        """Retrieve all documents from a collection for keyword indexing."""
+        try:
+            collection = self.client.get_collection(collection_name)
+            # Get all documents - don't include 'ids' in the include parameter
+            result = collection.get(include=["documents", "metadatas"])
+            
+            documents = []
+            texts = result.get("documents", [])
+            metadatas = result.get("metadatas", [])
+            
+            for idx, text in enumerate(texts):
+                doc = {
+                    "text": text if text else "",
+                    "metadata": metadatas[idx] if idx < len(metadatas) else {}
+                }
+                documents.append(doc)
+            
+            logger.info(f"Retrieved {len(documents)} documents from collection '{collection_name}'")
+            return documents
+        except Exception as e:
+            logger.error(f"Failed to retrieve documents from '{collection_name}': {e}")
+            return []
+
     # =========================
     # STATS / MONITORING
     # =========================
-
     def get_collection_stats(self) -> Dict[str, int]:
         return {
             "knowledge_base": self.knowledge_collection.count(),
@@ -120,7 +139,6 @@ class VectorStore:
     # =========================
     # MAINTENANCE
     # =========================
-
     def clear_collection(self, collection_name: str) -> bool:
         try:
             self.client.delete_collection(collection_name)
@@ -150,13 +168,10 @@ class VectorStore:
 # =========================
 # SAFE PRODUCTION SINGLETON
 # =========================
-
 from functools import lru_cache
 
 
 @lru_cache()
 def get_vector_store() -> VectorStore:
-    """
-    Thread-safe singleton (production safe alternative to global variable)
-    """
+    
     return VectorStore()

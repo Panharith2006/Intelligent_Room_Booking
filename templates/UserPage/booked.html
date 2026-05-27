@@ -2,7 +2,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Bookings | RUPP Room Booking</title>
@@ -119,11 +118,11 @@
                             </div>
                         </div>
                         <div class="booking-actions">
-                            <button class="btn btn-info" onclick="console.log('View Details button clicked for booking:', {{ booking.id }}); viewBooking({{ booking.id }});">
+                            <button class="btn btn-info" onclick="viewBooking({{ booking.id }});">
                                 <i class="fas fa-eye"></i> View Details
                             </button>
                             {% if booking.status == 'confirmed' %}
-                                <button class="btn btn-danger" onclick="console.log('Cancel button clicked for booking:', {{ booking.id }}); cancelBooking({{ booking.id }});" 
+                                <button class="btn btn-danger" onclick="cancelBooking({{ booking.id }});" 
                                         data-booking-id="{{ booking.id }}" 
                                         data-start-time="{{ booking.start_time|date:'c' }}">
                                     <i class="fas fa-ban"></i> Cancel
@@ -222,67 +221,6 @@
     </div>
 
     <script src="{% static 'UserPage/js/booked.js' %}"></script>
-    
-    <script>
-        // 🚨 FALLBACK FUNCTIONS - In case external JS doesn't load
-        console.log('Fallback script loaded');
-        
-        // Check if functions exist
-        console.log('viewBooking function exists:', typeof viewBooking !== 'undefined');
-        console.log('cancelBooking function exists:', typeof cancelBooking !== 'undefined');
-        
-        // Fallback viewBooking function
-        if (typeof viewBooking === 'undefined') {
-            console.log('Creating fallback viewBooking function');
-            window.viewBooking = function(bookingId) {
-                console.log('Fallback viewBooking called for ID:', bookingId);
-                window.location.href = `/accounts/booking-detail/${bookingId}/`;
-            };
-        }
-        
-        // Fallback cancelBooking function
-        if (typeof cancelBooking === 'undefined') {
-            console.log('Creating fallback cancelBooking function');
-            window.cancelBooking = function(bookingId) {
-                console.log('Fallback cancelBooking called for ID:', bookingId);
-                if (confirm('Are you sure you want to cancel this booking?')) {
-                    // Simple form submission approach
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = `/accounts/booking/${bookingId}/cancel/`;
-                    
-                    // Add CSRF token
-                    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
-                    if (csrfToken) {
-                        const csrfInput = document.createElement('input');
-                        csrfInput.type = 'hidden';
-                        csrfInput.name = 'csrfmiddlewaretoken';
-                        csrfInput.value = csrfToken.value;
-                        form.appendChild(csrfInput);
-                    }
-                    
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            };
-        }
-        
-        // Test button click detection
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, setting up button listeners');
-            const buttons = document.querySelectorAll('.booking-actions button');
-            console.log('Found', buttons.length, 'action buttons');
-            
-            buttons.forEach((button, index) => {
-                console.log(`Button ${index}:`, button.textContent.trim(), 'onclick:', button.onclick);
-                
-                // Add backup click listener
-                button.addEventListener('click', function(e) {
-                    console.log('Button clicked via addEventListener:', this.textContent.trim());
-                });
-            });
-        });
-    </script>
     {% include 'includes/chatbot_widget.html' %}
 </body>
 </html>

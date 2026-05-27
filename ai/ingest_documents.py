@@ -1,5 +1,3 @@
-"""ai/ingest_documents.py
-"""
 import os
 import logging
 from pathlib import Path
@@ -10,28 +8,11 @@ logger = logging.getLogger(__name__)
 def ingest_document(
     file_path: str,
     collection_name: str,
-    chunk_size: int = 800,
-    chunk_overlap: int = 150,
+    chunk_size: int = 1200,
+    chunk_overlap: int = 300,
     extra_metadata: Optional[Dict] = None,
     user_id: Optional[int] = None
 ) -> bool:
-    """
-    Generic document ingestion function.
-    
-    Args:
-        file_path: Path to document (relative to project root or absolute)
-        collection_name: Target collection ("knowledge_base", "rooms_info", "booking_policies")
-        chunk_size: Characters per chunk (default: 800)
-        chunk_overlap: Overlap between chunks (default: 150)
-        extra_metadata: Additional metadata to attach to all chunks
-        user_id: User ID for document isolation (optional)
-    
-    Returns:
-        bool: True if successful, False otherwise
-    
-    Example:
-        ingest_document("FAQ.md", "knowledge_base", extra_metadata={"document_type": "faq"})
-    """
     
     from ai.document_ingestion_langchain import LangChainDocumentLoader
     from ai.vector_store import get_vector_store
